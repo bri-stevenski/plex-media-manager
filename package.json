@@ -1,0 +1,33 @@
+{
+  "name": "plex-media-manager",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && npm run build:tools",
+    "build:tools": "tsc --project tsconfig.tools.json",
+    "start": "next start",
+    "rename": "node dist/renameMediaFiles.js",
+    "transcode": "node dist/transcodeMediaFiles.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "axios": "^1.6.0",
+    "commander": "^11.0.0",
+    "dotenv": "^16.3.1",
+    "luxon": "^3.4.0",
+    "p-limit": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "prettier": "latest",
+    "@types/node": "^20.0.0",
+    "@types/luxon": "^3.3.0",
+    "ts-node": "^10.9.0"
+  }
+}

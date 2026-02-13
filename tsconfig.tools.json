@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "target": "es2020",
+    "module": "commonjs",
+    "outDir": "dist"
+  },
+  "include": [
+    "src/renameMediaFiles.ts",
+    "src/transcodeMediaFiles.ts",
+    "src/utils/*.ts"
+  ],
+  "exclude": [
+    "src/app",
+    "src/components",
+    "src/pages",
+    "src/styles",
+    "src/types",
+    "node_modules"
+  ]
+}
