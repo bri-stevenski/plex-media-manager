@@ -9,11 +9,13 @@ import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
+import { promisify } from 'util';
+import { exec } from 'child_process';
 import { TRANSCODE_SETTINGS } from './constants';
 import { getLogger } from './logger';
 
 const logger = getLogger();
-const execPromise = promisify(exec);
+const _execPromise = promisify(exec);
 
 // Global set to track all active subprocesses
 const activeProcesses = new Set<any>();
@@ -240,10 +242,7 @@ export async function validateTranscodedFile(
 }
 
 export function cleanupTranscodingArtifacts(filepath: string): void {
-  const tempPatterns = [
-    filepath + '.tmp',
-    filepath.replace(/\.[^.]+$/, '') + '.tmp',
-  ];
+  const tempPatterns = [filepath + '.tmp', filepath.replace(/\.[^.]+$/, '') + '.tmp'];
 
   for (const tempFile of tempPatterns) {
     if (fs.existsSync(tempFile)) {

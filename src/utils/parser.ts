@@ -7,21 +7,13 @@
  */
 
 import path from 'path';
-import {
-  SEASON_EPISODE_REGEX,
-  YEAR_REGEX,
-  DATE_REGEXES,
-  QUALITY_FORMATS_REGEX,
-} from './constants';
-import { getLogger } from './logger';
-
-const logger = getLogger();
+import { SEASON_EPISODE_REGEX, YEAR_REGEX, DATE_REGEXES, QUALITY_FORMATS_REGEX } from './constants';
 
 /**
  * Normalize text by replacing common separators and removing extra whitespace.
  */
 function normalizeText(text: string): string {
-  let normalized = text.replace(/[._\-\+]/g, ' ');
+  let normalized = text.replace(/[._+-]/g, ' ');
   normalized = normalized.replace(/\s+/g, ' ');
   return normalized.trim();
 }
@@ -129,7 +121,10 @@ function guessTitleAndYearFromStem(stem: string): [string, number | null] {
     titlePart = titlePart.replace(pattern, '');
   }
 
-  titlePart = titlePart.replace(/\s+/g, ' ').replace(/\s*[\-_()]\s*/g, ' ').trim();
+  titlePart = titlePart
+    .replace(/\s+/g, ' ')
+    .replace(/\s*[-_()]\s*/g, ' ')
+    .trim();
 
   // Convert to title case if all caps
   if (titlePart === titlePart.toUpperCase()) {
@@ -146,14 +141,34 @@ function guessTitleAndYearFromStem(stem: string): [string, number | null] {
  * Extract episode title from a TV show filename stem.
  */
 function extractEpisodeTitleFromFilename(stem: string): string | null {
-  // Try patterns on original string first
+  // OPTIMIZATION: Strip quality formats first before any extraction
+  let cleaned = stem;
+
+  // Remove common quality/release formats first
+  const qualityPatterns = [
+    /\s*\[?(?:1080p|720p|480p|2160p|4k|UHD)\]?\s*/gi,
+    /\s*\[?(?:WEB[-\s]?DL|WEB|BluRay|BLURAY|BRRip|DVDRip|HDRip)\]?\s*/gi,
+    /\s*\[?(?:x264|x265|h\.?264|h\.?265)\]?\s*/gi,
+    /\s*\[?(?:AMZN|NF|NETFLIX|HBO|HULU|DSNP)\]?\s*/gi,
+    /\s*\[?(?:AAC|AC3|DDP?\d*\.?\d*)\]?\s*/gi,
+    /\s*\[?(?:NTb|ELiTE|GalaxyTV|UTR|FLUX|EVO)\]?\s*/gi,
+  ];
+
+  for (const pattern of qualityPatterns) {
+    cleaned = cleaned.replace(pattern, ' ');
+  }
+
+  // Clean up extra spaces from removal
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+  // Try patterns on cleaned string first
   const patternsOriginal = [
     /[Ss]\d{1,2}[Ee]\d{1,2}\s*[-_–—]\s*(.+)$/,
     /.+\s*\d{4}[-_.]\d{1,2}[-_.]\d{1,2}\s*[-_–—]\s*(.+)$/,
   ];
 
   for (const pattern of patternsOriginal) {
-    const match = pattern.exec(stem);
+    const match = pattern.exec(cleaned);
     if (match) {
       let titleCandidate = match[1].trim().replace(/[-_]/g, '');
 
@@ -163,29 +178,20 @@ function extractEpisodeTitleFromFilename(stem: string): string | null {
       // Remove bracketed info
       titleCandidate = titleCandidate.replace(/\s*\[[^\]]*\]/g, '').trim();
 
-      // Remove quality/format tags
-      titleCandidate = titleCandidate.replace(QUALITY_FORMATS_REGEX, '').trim();
-
-      // Remove common quality patterns
-      titleCandidate = titleCandidate
-        .replace(/\b(1080p|720p|480p|2160p|4k|AMZN|WEB-DL|WEB|BluRay|x264|x265|h\.?264|h\.?265)\b/gi, '')
-        .trim();
-
       // Clean up excessive whitespace
       titleCandidate = titleCandidate.replace(/\s+/g, ' ').trim();
 
       if (
         titleCandidate &&
         titleCandidate.length > 0 &&
-        !SEASON_EPISODE_REGEX.test(titleCandidate) &&
-        !QUALITY_FORMATS_REGEX.test(titleCandidate)
+        !SEASON_EPISODE_REGEX.test(titleCandidate)
       ) {
         return sanitizeFilename(titleCandidate);
       }
     }
   }
 
-  const s = normalizeText(stem);
+  const s = normalizeText(cleaned);
   const patternsNormalized = [
     /[Ss]\d{1,2}[Ee]\d{1,2}\s+(.+)$/,
     /(.+)\s*[-_–—]\s*[Ss]\d{1,2}[Ee]\d{1,2}$/,
@@ -283,7 +289,7 @@ export function parseMediaFile(filepath: string): MediaInfo {
       showTitle = showTitle.replace(pattern, '');
     }
 
-    showTitle = showTitle.replace(/[._\-\+]/g, ' ');
+    showTitle = showTitle.replace(/[._+-]/g, ' ');
     showTitle = showTitle.replace(/\s+/g, ' ').trim();
 
     const episodeTitle = extractEpisodeTitleFromFilename(stem);

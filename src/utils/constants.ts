@@ -34,13 +34,13 @@ export const EST_AVG_VIDEO_LENGTH = 2700; // Estimated average video length in s
 export const VIDEO_EXTENSIONS = new Set(['.mkv', '.mp4', '.avi', '.mov', '.m4v', '.webm']);
 
 // Regex patterns for filename parsing
-export const SEASON_EPISODE_REGEX = /(?:[Ss]\s*)?(\d{1,2})\s*[Xx]\s*(\d{1,2})|([Ss]\s*(\d{1,2})\s*[Ee]\s*(\d{1,2}))/;
+export const SEASON_EPISODE_REGEX =
+  /(?:[Ss]\s*)?(\d{1,2})\s*[Xx]\s*(\d{1,2})|([Ss]\s*(\d{1,2})\s*[Ee]\s*(\d{1,2}))/;
 export const TMDB_ID_REGEX = /tmdb-\d+/;
 export const YEAR_REGEX = /(19|20)\d{2}/;
-export const DATE_REGEXES = [
-  /(20\d{2}|19\d{2})[-_. ](0[1-9]|1[0-2])[-_. ](0[1-9]|[12]\d|3[01])/,
-];
-export const QUALITY_FORMATS_REGEX = /\b(480p|720p|1080p|2160p|4k|hdr|hdr10\+?|dv|web[- ]?dl|bluray|webrip|x264|x265|h\.264|h\.265|ddp?\d?\.?\d?|atmos|remux)\b/gi;
+export const DATE_REGEXES = [/(20\d{2}|19\d{2})[-_. ](0[1-9]|1[0-2])[-_. ](0[1-9]|[12]\d|3[01])/];
+export const QUALITY_FORMATS_REGEX =
+  /\b(480p|720p|1080p|2160p|4k|hdr|hdr10\+?|dv|web[- ]?dl|bluray|webrip|x264|x265|h\.264|h\.265|ddp?\d?\.?\d?|atmos|remux)\b/gi;
 
 // TMDb API configuration
 export const TMDB_API_KEY = process.env.TMDB_API_KEY || '';

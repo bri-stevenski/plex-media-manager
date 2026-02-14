@@ -70,7 +70,7 @@ export class PlexLogger {
     // Write to console if enabled
     if (this.enableConsole) {
       const prefix = `${logEntry.timestamp} - ${logEntry.level}`;
-      console.log(`${prefix}: ${logEntry.message}`);
+      console.warn(`${prefix}: ${logEntry.message}`);
     }
 
     // Write to file

@@ -144,7 +144,7 @@ class MediaTranscoder {
 
       if (this.dryRun) {
         logger.info(
-          `DRY RUN COMPLETE - ` +
+          'DRY RUN COMPLETE - ' +
             `Files attempted: ${filesAttempted}, ` +
             `Successfully moved: ${filesMovedSuccessfully}, ` +
             `Failed to move: ${filesFailedToMove}, ` +
@@ -153,7 +153,7 @@ class MediaTranscoder {
         );
       } else {
         logger.info(
-          `Media transcoding completed - ` +
+          'Media transcoding completed - ' +
             `Files attempted: ${filesAttempted}, ` +
             `Successfully moved: ${filesMovedSuccessfully}, ` +
             `Failed to move: ${filesFailedToMove}, ` +
@@ -177,9 +177,7 @@ class MediaTranscoder {
     }
   }
 
-  private async scanAndAnalyze(
-    transcodeDir: string,
-  ): Promise<[FileInfo[], number]> {
+  private async scanAndAnalyze(transcodeDir: string): Promise<[FileInfo[], number]> {
     const filesToProcess: FileInfo[] = [];
     let analysisErrors = 0;
 
@@ -335,7 +333,10 @@ class MediaTranscoder {
       return true;
     }
 
-    const errorDir = createErrorDirectory(path.join(MEDIA_BASE_FOLDER, ERROR_FOLDER), 'upload_errors');
+    const errorDir = createErrorDirectory(
+      path.join(MEDIA_BASE_FOLDER, ERROR_FOLDER),
+      'upload_errors',
+    );
     const success = safeMove(finalPath, destinationPath, errorDir);
 
     if (success) {

@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production
+build/
+dist/
+.next/
+out/
+
+# Misc
+.DS_Store
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+
+# Generated files
+.eslintcache
+tsconfig.tsbuildinfo
+
+# Lock files (keep for version control but don't format)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Temp and cache
+.cache/
+.logs/
+temp/
+tmp/

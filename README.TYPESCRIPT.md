@@ -43,6 +43,7 @@ npm run rename [source_dir] [options]
 ```
 
 **Options:**
+
 - `--dry-run`: Preview changes without making modifications
 - `--use-episode-titles`: Use episode titles instead of S##E## numbers for TV shows
 - `--log-level <level>`: Logging level (DEBUG, INFO, WARN, ERROR)
@@ -72,6 +73,7 @@ npm run transcode [source_dir] [options]
 ```
 
 **Options:**
+
 - `--dry-run`: Preview changes without making modifications
 - `--log-level <level>`: Logging level (DEBUG, INFO, WARN, ERROR)
 - `--workers <num>`: Number of worker processes for parallel transcoding
@@ -133,12 +135,12 @@ Edit `src/utils/constants.ts` to modify transcoding parameters:
 
 ```typescript
 export const TRANSCODE_SETTINGS = {
-  video_codec: 'libx264',      // Video encoder
-  audio_codec: 'aac',           // Audio encoder
-  preset: 'medium',             // Encoding speed (ultrafast to veryslow)
-  crf: 23,                       // Quality (0-51, lower is better)
-  audio_bitrate: '128k',        // Audio bitrate
-  max_audio_channels: 2,        // Maximum audio channels
+  video_codec: 'libx264', // Video encoder
+  audio_codec: 'aac', // Audio encoder
+  preset: 'medium', // Encoding speed (ultrafast to veryslow)
+  crf: 23, // Quality (0-51, lower is better)
+  audio_bitrate: '128k', // Audio bitrate
+  max_audio_channels: 2, // Maximum audio channels
 };
 ```
 
@@ -164,7 +166,7 @@ The media processing system expects the following folder structure:
 
 Logs are written to `./.logs/` directory in JSON format for easy parsing and analysis.
 
-- **plex-media-tool_*.log**: Main log files with structured JSON output
+- **plex-media-tool\_\*.log**: Main log files with structured JSON output
 
 ### Log Levels
 

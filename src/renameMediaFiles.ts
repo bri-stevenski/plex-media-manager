@@ -34,32 +34,25 @@ import {
 import { setupLogging, getLogger } from './utils/logger';
 import { parseMediaFile } from './utils/parser';
 import { constructMoviePath, constructTvShowPath } from './utils/formatter';
-import { TMDbClient, TMDbError } from './utils/tmdbClient';
+import { TMDbClient } from './utils/tmdbClient';
 
 const logger = getLogger();
-
-interface MediaInfo {
-  path: string;
-  contentType: string;
-  needsTranscoding: boolean;
-  transcoded: boolean;
-}
 
 class MediaRenamer {
   private dryRun: boolean;
   private logLevel: string;
-  private useEpisodeTitles: boolean;
   private running = true;
   private tmdbClient: TMDbClient;
+  private createdDirectories: Set<string>;
+  private errorDir: string;
+  private useEpisodeTitles: boolean;
 
-  constructor(
-    dryRun: boolean = false,
-    logLevel: string = DEFAULT_LOG_LEVEL,
-    useEpisodeTitles: boolean = false,
-  ) {
+  constructor(dryRun: boolean = false, logLevel: string = DEFAULT_LOG_LEVEL, useEpisodeTitles: boolean = false) {
     this.dryRun = dryRun;
     this.logLevel = logLevel;
     this.useEpisodeTitles = useEpisodeTitles;
+    this.createdDirectories = new Set();
+    this.errorDir = '';
 
     setupLogging(logLevel, LOG_DIR, true);
 
@@ -144,21 +137,21 @@ class MediaRenamer {
     } finally {
       if (this.dryRun) {
         logger.info(
-          `DRY RUN COMPLETE - ` +
-            `Total: ${totalFilesProcessed}, ` +
-            `Successful: ${totalFilesSuccessful}, ` +
-            `Failed: ${totalFilesFailed}, ` +
-            `MP4 files that would be moved to upload: ${mp4FilesMoved}, ` +
-            `Non-MP4 files that would be moved to transcode: ${nonMp4FilesMoved}`,
+          'DRY RUN COMPLETE - ' +
+          `Total: ${totalFilesProcessed}, ` +
+          `Successful: ${totalFilesSuccessful}, ` +
+          `Failed: ${totalFilesFailed}, ` +
+          `MP4 files that would be moved to upload: ${mp4FilesMoved}, ` +
+          `Non-MP4 files that would be moved to transcode: ${nonMp4FilesMoved}`,
         );
       } else {
         logger.info(
-          `Media renaming completed - ` +
-            `Total: ${totalFilesProcessed}, ` +
-            `Successful: ${totalFilesSuccessful}, ` +
-            `Failed: ${totalFilesFailed}, ` +
-            `MP4 files moved to upload: ${mp4FilesMoved}, ` +
-            `Non-MP4 files moved to transcode: ${nonMp4FilesMoved}`,
+          'Media renaming completed - ' +
+          `Total: ${totalFilesProcessed}, ` +
+          `Successful: ${totalFilesSuccessful}, ` +
+          `Failed: ${totalFilesFailed}, ` +
+          `MP4 files moved to upload: ${mp4FilesMoved}, ` +
+          `Non-MP4 files moved to transcode: ${nonMp4FilesMoved}`,
         );
       }
     }
@@ -175,11 +168,18 @@ class MediaRenamer {
 
     for (const dir of directories) {
       ensureDirectoryExists(dir);
-      logger.debug(`Ensured directory exists: ${dir}`);
+      this.createdDirectories.add(dir);
     }
+
+    // Pre-create error directory for renaming errors
+    this.errorDir = createErrorDirectory(
+      path.join(MEDIA_BASE_FOLDER, ERROR_FOLDER),
+      'renaming_errors',
+    );
+    this.createdDirectories.add(this.errorDir);
   }
 
-  private async processFile(filepath: string, contentType: string): Promise<boolean> {
+  private async processFile(filepath: string, _contentType: string): Promise<boolean> {
     logger.info(`Processing file: ${filepath}`);
 
     try {
@@ -194,7 +194,7 @@ class MediaRenamer {
       }
 
       // Fetch episode title if TV show
-      if (contentType === CONTENT_TYPE_TV) {
+      if (mediaInfo.content_type === CONTENT_TYPE_TV) {
         await this.fetchEpisodeTitleFromTmdb(mediaInfo, tmdbData);
       }
 
@@ -203,7 +203,7 @@ class MediaRenamer {
       logger.debug(`New path: ${newPath}`);
 
       // Move to appropriate destination
-      return this.moveToDestination(filepath, newPath, contentType);
+      return this.moveToDestination(filepath, newPath);
     } catch (error) {
       logger.error(`Processing failed for ${filepath}: ${error}`);
       return this.handleError(filepath, String(error)) < 0 ? false : true;
@@ -319,7 +319,14 @@ class MediaRenamer {
     }
   }
 
-  private moveToDestination(source: string, newPath: string, contentType: string): boolean {
+  private ensureDirectoryCreatedOnce(dirPath: string): void {
+    if (!this.createdDirectories.has(dirPath)) {
+      ensureDirectoryExists(dirPath);
+      this.createdDirectories.add(dirPath);
+    }
+  }
+
+  private moveToDestination(source: string, newPath: string): boolean {
     const extension = path.extname(source).toLowerCase();
     const isMp4 = extension === '.mp4';
 
@@ -327,7 +334,9 @@ class MediaRenamer {
       ? path.join(MEDIA_BASE_FOLDER, UPLOAD_FOLDER)
       : path.join(MEDIA_BASE_FOLDER, TRANSCODE_FOLDER);
 
-    logger.info(`${isMp4 ? 'MP4' : 'Non-MP4'} file detected, moving to ${isMp4 ? 'upload' : 'transcode'} folder`);
+    logger.info(
+      `${isMp4 ? 'MP4' : 'Non-MP4'} file detected, moving to ${isMp4 ? 'upload' : 'transcode'} folder`,
+    );
 
     // Extract relative path from newPath
     let relativePath = newPath;
@@ -344,8 +353,11 @@ class MediaRenamer {
       return true;
     }
 
-    const errorDir = createErrorDirectory(path.join(MEDIA_BASE_FOLDER, ERROR_FOLDER), 'renaming_errors');
-    const success = safeMove(source, destinationPath, errorDir);
+    // Ensure destination directory exists (only once per unique path)
+    const destinationFileDir = path.dirname(destinationPath);
+    this.ensureDirectoryCreatedOnce(destinationFileDir);
+
+    const success = safeMove(source, destinationPath, this.errorDir);
 
     if (success) {
       const destinationRelative = path.relative(destinationDir, destinationPath);
@@ -394,17 +406,9 @@ async function main() {
       'Use episode titles instead of S##E## numbers for TV shows',
       false,
     )
-    .option(
-      '--log-level <level>',
-      'Logging level (DEBUG, INFO, WARN, ERROR)',
-      DEFAULT_LOG_LEVEL,
-    )
+    .option('--log-level <level>', 'Logging level (DEBUG, INFO, WARN, ERROR)', DEFAULT_LOG_LEVEL)
     .action(async (sourceDir, options) => {
-      const renamer = new MediaRenamer(
-        options.dryRun,
-        options.logLevel,
-        options.useEpisodeTitles,
-      );
+      const renamer = new MediaRenamer(options.dryRun, options.logLevel, options.useEpisodeTitles);
 
       try {
         await renamer.run(sourceDir);

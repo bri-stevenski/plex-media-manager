@@ -5,7 +5,8 @@
  * handling search requests, error handling, and response parsing.
  */
 
-import axios, { AxiosInstance } from 'axios';
+import type { AxiosInstance } from 'axios';
+import axios from 'axios';
 import { TMDB_API_KEY, TMDB_BASE_URL } from './constants';
 import { getLogger } from './logger';
 
@@ -36,6 +37,8 @@ export class TMDbClient {
   private apiKey: string;
   private baseUrl: string;
   private session: AxiosInstance;
+  private movieSearchCache: Map<string, Record<string, any>[]>;
+  private tvShowSearchCache: Map<string, Record<string, any>[]>;
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || TMDB_API_KEY;
@@ -51,9 +54,16 @@ export class TMDbClient {
       },
       timeout: 30000,
     });
+
+    // Initialize search result caches
+    this.movieSearchCache = new Map();
+    this.tvShowSearchCache = new Map();
   }
 
-  private async makeRequest(endpoint: string, params?: Record<string, any>): Promise<Record<string, any>> {
+  private async makeRequest(
+    endpoint: string,
+    params?: Record<string, any>,
+  ): Promise<Record<string, any>> {
     const url = `/${endpoint.replace(/^\//, '')}`;
 
     try {
@@ -89,6 +99,14 @@ export class TMDbClient {
   }
 
   async searchMovie(title: string, year?: number): Promise<Record<string, any>[]> {
+    const cacheKey = `${title}:${year || 'any'}`;
+
+    // Check cache first
+    if (this.movieSearchCache.has(cacheKey)) {
+      logger.debug(`Cache hit for movie search: '${title}' (${year || 'any year'})`);
+      return this.movieSearchCache.get(cacheKey)!;
+    }
+
     const params: Record<string, any> = { query: title };
     if (year) {
       params.year = String(year);
@@ -110,10 +128,21 @@ export class TMDbClient {
       logger.warning(`No TMDb movie results found for: '${title}' (${year || 'any year'})`);
     }
 
+    // Store in cache
+    this.movieSearchCache.set(cacheKey, results);
+
     return results;
   }
 
   async searchTvShow(title: string, firstAirDateYear?: number): Promise<Record<string, any>[]> {
+    const cacheKey = `${title}:${firstAirDateYear || 'any'}`;
+
+    // Check cache first
+    if (this.tvShowSearchCache.has(cacheKey)) {
+      logger.debug(`Cache hit for TV show search: '${title}' (${firstAirDateYear || 'any year'})`);
+      return this.tvShowSearchCache.get(cacheKey)!;
+    }
+
     const params: Record<string, any> = { query: title };
     if (firstAirDateYear) {
       params.first_air_date_year = String(firstAirDateYear);
@@ -132,8 +161,13 @@ export class TMDbClient {
         );
       });
     } else {
-      logger.warning(`No TMDb TV results found for: '${title}' (${firstAirDateYear || 'any year'})`);
+      logger.warning(
+        `No TMDb TV results found for: '${title}' (${firstAirDateYear || 'any year'})`,
+      );
     }
+
+    // Store in cache
+    this.tvShowSearchCache.set(cacheKey, results);
 
     return results;
   }
@@ -168,7 +202,9 @@ export class TMDbClient {
         for (const episode of episodes) {
           if (episode.name?.toLowerCase() === episodeTitle.toLowerCase()) {
             finalEpisodeNumber = episode.episode_number;
-            logger.debug(`Found episode '${episodeTitle}' as S${seasonNumber}E${finalEpisodeNumber}`);
+            logger.debug(
+              `Found episode '${episodeTitle}' as S${seasonNumber}E${finalEpisodeNumber}`,
+            );
             found = true;
             break;
           }
@@ -205,7 +241,9 @@ export class TMDbClient {
       }
     }
 
-    logger.debug(`Getting episode details for show ID ${tmdbId}, S${finalSeasonNumber}E${finalEpisodeNumber}`);
+    logger.debug(
+      `Getting episode details for show ID ${tmdbId}, S${finalSeasonNumber}E${finalEpisodeNumber}`,
+    );
     const episodeData = await this.makeRequest(
       `tv/${tmdbId}/season/${finalSeasonNumber}/episode/${finalEpisodeNumber}`,
     );
@@ -217,10 +255,7 @@ export class TMDbClient {
     return episodeData;
   }
 
-  async findBestMovieMatch(
-    title: string,
-    year?: number,
-  ): Promise<Record<string, any> | null> {
+  async findBestMovieMatch(title: string, year?: number): Promise<Record<string, any> | null> {
     let results = await this.searchMovie(title, year);
 
     if (results.length === 0) {
@@ -255,16 +290,14 @@ export class TMDbClient {
 
     // Return the first (highest rated) result
     const result = results[0];
-    logger.info(
-      `Using best match: '${result.title}' (${result.release_date}) - ID: ${result.id}`,
-    );
+    logger.info(`Using best match: '${result.title}' (${result.release_date}) - ID: ${result.id}`);
     return result;
   }
 
   async findBestTvMatch(
     title: string,
     year?: number,
-    useEpisodeTitles: boolean = false,
+    _useEpisodeTitles: boolean = false,
   ): Promise<Record<string, any> | null> {
     let results = await this.searchTvShow(title, year);
 
@@ -314,9 +347,7 @@ export class TMDbClient {
 
     // If we have a year, prefer exact year matches
     if (year) {
-      const exactMatches = results.filter((r) =>
-        (r.first_air_date || '').startsWith(String(year)),
-      );
+      const exactMatches = results.filter((r) => (r.first_air_date || '').startsWith(String(year)));
       if (exactMatches.length > 0) {
         const result = exactMatches[0];
         logger.info(`Found exact year match: '${result.name}' (${result.first_air_date})`);
@@ -326,9 +357,7 @@ export class TMDbClient {
 
     // Return the first (highest rated) result
     const result = results[0];
-    logger.info(
-      `Using best match: '${result.name}' (${result.first_air_date}) - ID: ${result.id}`,
-    );
+    logger.info(`Using best match: '${result.name}' (${result.first_air_date}) - ID: ${result.id}`);
     return result;
   }
 

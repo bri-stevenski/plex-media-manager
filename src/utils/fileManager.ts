@@ -116,11 +116,7 @@ export function ensureDirectoryExists(directory: string): void {
 /**
  * Safely move a file with error handling and backup.
  */
-export function safeMove(
-  source: string,
-  destination: string,
-  errorDir?: string,
-): boolean {
+export function safeMove(source: string, destination: string, errorDir?: string): boolean {
   try {
     moveFile(source, destination);
     return true;
