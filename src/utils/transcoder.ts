@@ -9,8 +9,6 @@ import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
-import { promisify } from 'util';
-import { exec } from 'child_process';
 import { TRANSCODE_SETTINGS } from './constants';
 import { getLogger } from './logger';
 

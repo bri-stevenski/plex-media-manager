@@ -338,12 +338,13 @@ class MediaRenamer {
       `${isMp4 ? 'MP4' : 'Non-MP4'} file detected, moving to ${isMp4 ? 'upload' : 'transcode'} folder`,
     );
 
-    // Extract relative path from newPath
-    let relativePath = newPath;
-    if (relativePath.startsWith('../media/')) {
-      relativePath = relativePath.substring(9);
-    } else if (relativePath.startsWith('../')) {
-      relativePath = relativePath.substring(3);
+    // Compute relative path from MEDIA_BASE_FOLDER to the newPath in a
+    // platform-independent way to avoid duplicating the media folder.
+    let relativePath: string;
+    if (path.isAbsolute(newPath)) {
+      relativePath = path.relative(path.resolve(MEDIA_BASE_FOLDER), path.resolve(newPath));
+    } else {
+      relativePath = path.relative(path.normalize(MEDIA_BASE_FOLDER), path.normalize(newPath));
     }
 
     const destinationPath = path.join(destinationDir, relativePath);
