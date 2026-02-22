@@ -6,7 +6,6 @@
  */
 
 import path from 'path';
-import { DateTime } from 'luxon';
 import { MEDIA_BASE_FOLDER } from './constants';
 import { getLogger } from './logger';
 
@@ -18,43 +17,6 @@ const logger = getLogger();
 function sanitizeFilename(text: string): string {
   const invalidChars = /[<>:"/\\|?*]/g;
   return text.replace(invalidChars, '').trim();
-}
-
-/**
- * Check if a TV show is still running based on TMDB data.
- */
-function isShowStillRunning(tmdbData: Record<string, any>): boolean {
-  const currentYear = DateTime.now().year;
-
-  // Check if show is recent (within last 2 years)
-  const firstAirDate = tmdbData.first_air_date;
-  if (firstAirDate) {
-    try {
-      const airDate = DateTime.fromISO(firstAirDate);
-      const yearsSinceAir = currentYear - airDate.year;
-      if (yearsSinceAir <= 2) {
-        return true;
-      }
-    } catch {
-      return true;
-    }
-  }
-
-  // Check if show has an end date
-  const endDate = tmdbData.last_air_date;
-  if (endDate) {
-    try {
-      const endDateTime = DateTime.fromISO(endDate);
-      if (endDateTime > DateTime.now()) {
-        return false;
-      }
-    } catch {
-      // Invalid date format
-    }
-  }
-
-  // If no explicit end date, assume it's still running
-  return true;
 }
 
 /**
@@ -73,6 +35,7 @@ function formatMovieName(title: string, year: number, tmdbId: number): string {
  */
 function formatEpisodeFilename(
   seriesTitle: string,
+  seriesYear: number | null,
   season: number,
   episode: number,
   episodeTitle: string | null,
@@ -80,6 +43,7 @@ function formatEpisodeFilename(
 ): string {
   const cleanTitle = seriesTitle.trim().split(/\s+/).join(' ');
   const sanitized = sanitizeFilename(cleanTitle);
+  const seriesLabel = seriesYear ? `${sanitized} (${seriesYear})` : sanitized;
 
   const seasonStr = String(season).padStart(2, '0');
   const episodeStr = String(episode).padStart(2, '0');
@@ -93,8 +57,34 @@ function formatEpisodeFilename(
     cleanEpisodeTitle = sanitizeFilename(cleanEpisodeTitle);
   }
 
-  const filename = `${sanitized} - S${seasonStr}E${episodeStr} - ${cleanEpisodeTitle}${extension}`;
+  const filename = `${seriesLabel} - s${seasonStr}e${episodeStr} - ${cleanEpisodeTitle}${extension}`;
   logger.debug(`Formatted TV filename: ${filename}`);
+  return filename;
+}
+
+/**
+ * Format a date-based TV episode filename according to Plex conventions.
+ */
+function formatDateEpisodeFilename(
+  seriesTitle: string,
+  seriesYear: number | null,
+  airDate: string,
+  episodeTitle: string | null,
+  extension: string,
+): string {
+  const cleanTitle = seriesTitle.trim().split(/\s+/).join(' ');
+  const sanitized = sanitizeFilename(cleanTitle);
+  const seriesLabel = seriesYear ? `${sanitized} (${seriesYear})` : sanitized;
+
+  if (!episodeTitle || episodeTitle.trim().length === 0) {
+    const filename = `${seriesLabel} - ${airDate}${extension}`;
+    logger.debug(`Formatted date-based TV filename: ${filename}`);
+    return filename;
+  }
+
+  const cleanEpisodeTitle = sanitizeFilename(episodeTitle.trim().split(/\s+/).join(' '));
+  const filename = `${seriesLabel} - ${airDate} - ${cleanEpisodeTitle}${extension}`;
+  logger.debug(`Formatted date-based TV filename: ${filename}`);
   return filename;
 }
 
@@ -112,21 +102,15 @@ function formatMovieFolderName(title: string, year: number, tmdbId: number): str
 /**
  * Format a TV show folder name according to Plex conventions.
  */
-function formatTvShowFolderName(
-  title: string,
-  year: number | null,
-  tmdbId: number,
-  isOngoing: boolean = false,
-): string {
+function formatTvShowFolderName(title: string, year: number | null, tmdbId: number): string {
   const cleanTitle = title.trim().split(/\s+/).join(' ');
   const sanitized = sanitizeFilename(cleanTitle);
 
   let folderName: string;
-  if (isOngoing) {
-    folderName = `${sanitized} (${year}-) {tmdb-${tmdbId}}`;
-  } else if (year) {
-    folderName = `${sanitized} (${year}-) {tmdb-${tmdbId}}`;
+  if (year) {
+    folderName = `${sanitized} (${year}) {tmdb-${tmdbId}}`;
   } else {
+    // No year available
     folderName = `${sanitized} {tmdb-${tmdbId}}`;
   }
 
@@ -152,10 +136,11 @@ export function constructMoviePath(
   year: number,
   tmdbId: number,
   extension: string,
+  baseFolder: string = MEDIA_BASE_FOLDER,
 ): string {
   const movieFolderName = formatMovieFolderName(title, year, tmdbId);
   const movieName = formatMovieName(title, year, tmdbId);
-  return path.join(MEDIA_BASE_FOLDER, 'Movies', movieFolderName, `${movieName}${extension}`);
+  return path.join(baseFolder, 'Movies', movieFolderName, `${movieName}${extension}`);
 }
 
 /**
@@ -169,16 +154,39 @@ export function constructTvShowPath(
   episode: number,
   episodeTitle: string | null,
   extension: string,
-  tmdbData?: Record<string, any>,
+  baseFolder: string = MEDIA_BASE_FOLDER,
 ): string {
-  const isOngoing = tmdbData ? isShowStillRunning(tmdbData) : false;
-  const showFolderName = formatTvShowFolderName(title, year, tmdbId, isOngoing);
-  const showFolder = path.join(MEDIA_BASE_FOLDER, 'TV Shows', showFolderName);
+  const showFolderName = formatTvShowFolderName(title, year, tmdbId);
+  const showFolder = path.join(baseFolder, 'TV Shows', showFolderName);
 
   const seasonFolderName = formatSeasonFolderName(season);
   const seasonFolder = path.join(showFolder, seasonFolderName);
 
-  const filename = formatEpisodeFilename(title, season, episode, episodeTitle, extension);
+  const filename = formatEpisodeFilename(title, year, season, episode, episodeTitle, extension);
+
+  return path.join(seasonFolder, filename);
+}
+
+/**
+ * Construct the full path for a date-based TV show episode file.
+ */
+export function constructTvShowDatePath(
+  title: string,
+  year: number | null,
+  tmdbId: number,
+  season: number,
+  airDate: string,
+  episodeTitle: string | null,
+  extension: string,
+  baseFolder: string = MEDIA_BASE_FOLDER,
+): string {
+  const showFolderName = formatTvShowFolderName(title, year, tmdbId);
+  const showFolder = path.join(baseFolder, 'TV Shows', showFolderName);
+
+  const seasonFolderName = formatSeasonFolderName(season);
+  const seasonFolder = path.join(showFolder, seasonFolderName);
+
+  const filename = formatDateEpisodeFilename(title, year, airDate, episodeTitle, extension);
 
   return path.join(seasonFolder, filename);
 }

@@ -9,6 +9,6 @@
   "bracketSpacing": true,
   "endOfLine": "lf",
   "quoteProps": "as-needed",
-  "jsxBracketSameLine": false,
+  "bracketSameLine": false,
   "jsxSingleQuote": false
 }

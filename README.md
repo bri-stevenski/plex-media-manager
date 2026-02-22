@@ -1,75 +1,92 @@
-# My Next.js App
+# Plex Media Manager
 
-This is a Next.js application built with TypeScript. It serves as a template for creating modern web applications with a focus on performance and developer experience.
+CLI tool for TMDb-driven media renaming and Plex-friendly organization.
 
-## Features
+## What It Does
 
-- TypeScript support for type safety and better development experience.
-- Custom layout component to wrap around pages.
-- Header component for navigation.
-- Global CSS styles for consistent design across the application.
-- API functions for data fetching.
+- Parses movie and TV filenames
+- Looks up canonical metadata in TMDb
+- Renames and moves files into Plex-friendly paths
+- Skips known supplemental content (`Featurettes`, `Extras`, trailers, etc.)
 
-## Getting Started
+## Directory Model
 
-To get started with this project, follow these steps:
+Input defaults to:
 
-1. **Clone the repository:**
+- `<library-root>/queue`
 
-   ```bash
-   git clone <repository-url>
-   cd my-nextjs-app
-   ```
+Output defaults to:
 
-2. **Install dependencies:**
+- `<library-root>/organized/Movies/...`
+- `<library-root>/organized/TV Shows/...`
 
-   ```bash
-   npm install
-   ```
+Default `library-root` is the sibling `media` folder next to the repo
+(for example `../media` from the repo root), resolved from the tool location
+rather than your current shell working directory.
 
-3. **Run the development server:**
+## Setup
 
-   ```bash
-   npm run dev
-   ```
+1. Install dependencies:
 
-4. **Open your browser and navigate to:**
-
-   ```
-   http://localhost:3000
-   ```
-
-## Project Structure
-
-```
-my-nextjs-app
-├── src
-│   ├── app
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
-│   ├── components
-│   │   └── Header.tsx
-│   ├── lib
-│   │   └── api.ts
-│   ├── styles
-│   │   └── globals.css
-│   └── types
-│       └── index.d.ts
-├── public
-│   └── robots.txt
-├── package.json
-├── tsconfig.json
-├── next.config.js
-├── .eslintrc.json
-├── .prettierrc
-└── README.md
+```bash
+npm install
 ```
 
-## Contributing
+2. Create `.env` with your TMDb API key:
 
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+```env
+TMDB_API_KEY=your_api_key_here
+```
 
-## License
+3. Build the CLI:
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+```bash
+npm run build:tools
+```
+
+## Usage
+
+Run with defaults (`../media/queue` -> `../media/organized`):
+
+```bash
+npm run rename
+```
+
+Dry-run:
+
+```bash
+npm run rename:dry-run
+```
+
+Custom source:
+
+Windows:
+
+```bash
+npm run rename -- "P:\\media\\queue"
+```
+
+macOS/Linux:
+
+```bash
+npm run rename -- "/media/queue"
+```
+
+Custom output subfolder:
+
+Windows:
+
+```bash
+npm run rename -- --output-subfolder rename-complete "P:\\media\\queue"
+```
+
+macOS/Linux:
+
+```bash
+npm run rename -- --output-subfolder rename-complete "/media/queue"
+```
+
+## Development
+
+- `npm run build:tools` compiles the CLI to `dist/`
+- `npm run validate` runs type-check, lint, and format checks

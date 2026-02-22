@@ -7,7 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { DEFAULT_LOG_LEVEL, LOG_DIR } from './constants';
+import { DEFAULT_LOG_LEVEL, LOG_DIR, LOG_LEVELS } from './constants';
 
 interface LogEntry {
   timestamp: string;
@@ -97,99 +97,19 @@ export class PlexLogger {
     this._log('ERROR', message, extra);
   }
 
-  critical(message: string, extra?: Record<string, any>): void {
-    this._log('CRITICAL', message, extra);
-  }
-
   private _log(level: string, message: string, extra?: Record<string, any>): void {
+    if (!this.shouldLog(level)) {
+      return;
+    }
+
     const logEntry = this.formatLogEntry(level, message, extra);
     this.writeLog(logEntry);
   }
 
-  logFileOperation(
-    operation: string,
-    sourcePath: string,
-    destinationPath?: string,
-    success: boolean = true,
-    errorMessage?: string,
-  ): void {
-    const logData: Record<string, any> = {
-      operation,
-      source_path: sourcePath,
-      success,
-    };
-
-    if (destinationPath) {
-      logData.destination_path = destinationPath;
-    }
-
-    if (errorMessage) {
-      logData.error = errorMessage;
-    }
-
-    if (success) {
-      this.info(`File operation completed: ${operation}`, logData);
-    } else {
-      this.error(`File operation failed: ${operation}`, logData);
-    }
-  }
-
-  logTmdbRequest(
-    requestType: string,
-    query: string,
-    success: boolean,
-    resultCount?: number,
-    tmdbId?: number,
-    errorMessage?: string,
-  ): void {
-    const logData: Record<string, any> = {
-      request_type: requestType,
-      query,
-      success,
-    };
-
-    if (resultCount !== undefined) {
-      logData.result_count = resultCount;
-    }
-
-    if (tmdbId !== undefined) {
-      logData.tmdb_id = tmdbId;
-    }
-
-    if (errorMessage) {
-      logData.error = errorMessage;
-    }
-
-    if (success) {
-      this.info(`TMDb request completed: ${requestType}`, logData);
-    } else {
-      this.error(`TMDb request failed: ${requestType}`, logData);
-    }
-  }
-
-  logProcessingStep(
-    step: string,
-    filepath: string,
-    contentType: string,
-    success: boolean,
-    details?: Record<string, any>,
-  ): void {
-    const logData: Record<string, any> = {
-      step,
-      filepath,
-      content_type: contentType,
-      success,
-    };
-
-    if (details) {
-      Object.assign(logData, details);
-    }
-
-    if (success) {
-      this.info(`Processing step completed: ${step}`, logData);
-    } else {
-      this.error(`Processing step failed: ${step}`, logData);
-    }
+  private shouldLog(level: string): boolean {
+    const configuredLevel = LOG_LEVELS[this.logLevel] ?? LOG_LEVELS[DEFAULT_LOG_LEVEL];
+    const messageLevel = LOG_LEVELS[level] ?? LOG_LEVELS.INFO;
+    return messageLevel >= configuredLevel;
   }
 }
 
@@ -211,19 +131,3 @@ export function getLogger(): PlexLogger {
   }
   return globalLogger;
 }
-
-// Export convenience functions
-export const debug = (message: string, extra?: Record<string, any>) =>
-  getLogger().debug(message, extra);
-
-export const info = (message: string, extra?: Record<string, any>) =>
-  getLogger().info(message, extra);
-
-export const warning = (message: string, extra?: Record<string, any>) =>
-  getLogger().warning(message, extra);
-
-export const error = (message: string, extra?: Record<string, any>) =>
-  getLogger().error(message, extra);
-
-export const critical = (message: string, extra?: Record<string, any>) =>
-  getLogger().critical(message, extra);

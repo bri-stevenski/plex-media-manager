@@ -7,7 +7,14 @@
  */
 
 import path from 'path';
-import { SEASON_EPISODE_REGEX, YEAR_REGEX, DATE_REGEXES, QUALITY_FORMATS_REGEX } from './constants';
+import {
+  CONTENT_TYPE_MOVIES,
+  CONTENT_TYPE_TV,
+  DATE_REGEXES,
+  QUALITY_FORMATS_REGEX,
+  SEASON_EPISODE_REGEX,
+  YEAR_REGEX,
+} from './constants';
 
 /**
  * Normalize text by replacing common separators and removing extra whitespace.
@@ -50,7 +57,30 @@ function parseDateInFilename(filename: string): [string | null, number | null] {
   for (const rx of DATE_REGEXES) {
     const match = rx.exec(filename);
     if (match) {
-      const [, year, month, day] = match;
+      const first = match[1];
+      const second = match[2];
+      const third = match[3];
+
+      if (!first || !second || !third) {
+        continue;
+      }
+
+      let year: string;
+      let month: string;
+      let day: string;
+
+      // YYYY-MM-DD
+      if (first.length === 4) {
+        year = first;
+        month = second;
+        day = third;
+      } else {
+        // DD-MM-YYYY
+        day = first;
+        month = second;
+        year = third;
+      }
+
       return [`${year}-${month}-${day}`, parseInt(year)];
     }
   }
@@ -58,17 +88,79 @@ function parseDateInFilename(filename: string): [string | null, number | null] {
 }
 
 /**
- * Extract the first 4-digit year between 1900-2099 from a filename stem.
+ * Infer season number from path segments.
  */
-function extractYearFromStem(stem: string): number | null {
-  const matches = stem.matchAll(new RegExp(YEAR_REGEX.source, 'g'));
-  for (const match of matches) {
-    const year = parseInt(match[0]);
-    if (year >= 1900 && year <= 2099) {
-      return year;
+function parseSeasonFromPath(filepath: string): number | null {
+  const parts = path.normalize(filepath).split(path.sep);
+  for (let i = parts.length - 2; i >= 0; i--) {
+    const part = parts[i];
+    const seasonMatch = /^Season\s+(\d{1,2})$/i.exec(part);
+    if (seasonMatch && seasonMatch[1]) {
+      return parseInt(seasonMatch[1]);
+    }
+    if (/^Specials$/i.test(part)) {
+      return 0;
     }
   }
   return null;
+}
+
+/**
+ * Infer show directory name from file parent folders.
+ */
+function inferShowDirectoryFromPath(filepath: string): string {
+  const parent = path.basename(path.dirname(filepath));
+  if (/^Season\s+\d{1,2}$/i.test(parent) || /^Specials$/i.test(parent)) {
+    return path.basename(path.dirname(path.dirname(filepath)));
+  }
+  return parent;
+}
+
+/**
+ * Parse movie title/year from parent folder when available.
+ * Example: "Hamilton (2020)" or "Hamilton (2020) {tmdb-556574}".
+ */
+function parseMovieDirectoryFromPath(filepath: string): [string, number | null] | null {
+  const parentDir = path.basename(path.dirname(filepath));
+
+  let cleaned = parentDir.replace(/\s*\{tmdb-\d+\}\s*/gi, ' ').trim();
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+  const match = /^(.*?)\s*\((\d{4})\)/.exec(cleaned);
+  if (!match || !match[1] || !match[2]) {
+    return null;
+  }
+
+  const title = normalizeText(match[1]);
+  if (!title) {
+    return null;
+  }
+
+  return [title, parseInt(match[2])];
+}
+
+/**
+ * Normalize for loose title comparison.
+ */
+function normalizeForComparison(text: string): string {
+  return normalizeText(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Extract the last 4-digit year between 1900-2099 from a filename stem.
+ */
+function extractYearFromStem(stem: string): number | null {
+  const matches = stem.matchAll(new RegExp(YEAR_REGEX.source, 'g'));
+  let lastYear: number | null = null;
+  for (const match of matches) {
+    const year = parseInt(match[0]);
+    if (year >= 1900 && year <= 2099) {
+      lastYear = year;
+    }
+  }
+  return lastYear;
 }
 
 /**
@@ -105,21 +197,25 @@ function guessTitleAndYearFromStem(stem: string): [string, number | null] {
 
   // Remove common noisy patterns
   const noisyPatterns = [
-    /\b(S\d{1,2}E\d{1,2})\b/,
-    /\b(1080p|720p|480p|2160p|4k)\b/,
-    /\b(WEB[-\s]?DL|BluRay|DVDRip)\b/,
-    /\b(x264|x265|h\.264|h\.265)\b/,
-    /\b(DDP?\d*\.?\d*|AAC|AC3)\b/,
-    /\b(AMZN|NF|HBO|HULU)\b/,
-    /\b(NTb|ELiTE)\b/,
-    /\[[^\]]+\]/,
-    /\{[^}]+\}/,
-    /\[.*?\]/,
+    /\b(S\d{1,2}E\d{1,2})\b/gi,
+    /\b(1080p|720p|480p|2160p|4k)\b/gi,
+    /\b(WEB[-\s]?DL|BluRay|DVDRip)\b/gi,
+    /\b(x264|x265|h\.264|h\.265)\b/gi,
+    /\b(DDP?\d*\.?\d*|AAC|AC3)\b/gi,
+    /\b(AMZN|NF|HBO|HULU)\b/gi,
+    /\b(NTb|ELiTE)\b/gi,
+    /\[[^\]]+\]/g,
+    /\{[^}]+\}/g,
+    /\[.*?\]/g,
+    /\b(IN[-\s]?DEPTH|FEATURETTES?|BONUS(?:\s+FEATURES?)?|INTERVIEWS?|BEHIND\s+THE\s+SCENES)\b/gi,
   ];
 
   for (const pattern of noisyPatterns) {
     titlePart = titlePart.replace(pattern, '');
   }
+
+  // Strip distributor/promo prefixes like "The Undefeated Presents ..."
+  titlePart = titlePart.replace(/^.*?\bPRESENTS?\b\s+/i, '');
 
   titlePart = titlePart
     .replace(/\s+/g, ' ')
@@ -163,8 +259,9 @@ function extractEpisodeTitleFromFilename(stem: string): string | null {
 
   // Try patterns on cleaned string first
   const patternsOriginal = [
-    /[Ss]\d{1,2}[Ee]\d{1,2}\s*[-_–—]\s*(.+)$/,
-    /.+\s*\d{4}[-_.]\d{1,2}[-_.]\d{1,2}\s*[-_–—]\s*(.+)$/,
+    /[Ss]\d{1,2}[Ee]\d{1,2}\s*[-_\u2013\u2014]\s*(.+)$/,
+    /.+\s*\d{4}[-_.]\d{1,2}[-_.]\d{1,2}\s*[-_\u2013\u2014]\s*(.+)$/,
+    /.+\s*\d{1,2}[-_.]\d{1,2}[-_.]\d{4}\s*[-_\u2013\u2014]\s*(.+)$/,
   ];
 
   for (const pattern of patternsOriginal) {
@@ -194,7 +291,7 @@ function extractEpisodeTitleFromFilename(stem: string): string | null {
   const s = normalizeText(cleaned);
   const patternsNormalized = [
     /[Ss]\d{1,2}[Ee]\d{1,2}\s+(.+)$/,
-    /(.+)\s*[-_–—]\s*[Ss]\d{1,2}[Ee]\d{1,2}$/,
+    /(.+)\s*[-_\u2013\u2014]\s*[Ss]\d{1,2}[Ee]\d{1,2}$/,
     /(.+)\s*[Ss]\d{1,2}[Ee]\d{1,2}$/,
   ];
 
@@ -237,20 +334,27 @@ export function parseMediaFile(filepath: string): MediaInfo {
   const stem = path.basename(filepath, path.extname(filepath));
   const filename = path.basename(filepath);
 
-  // Check if it's a TV show by looking for season/episode patterns
-  const [season, episode] = parseTvFilename(filename);
+  // Check if it's a TV show by looking for season/episode or date-based patterns
+  const [seasonFromFilename, episodeFromFilename] = parseTvFilename(filename);
+  const [dateStr, dateYear] = parseDateInFilename(filename);
+  const isSeasonBasedTv = seasonFromFilename !== null && episodeFromFilename !== null;
+  const isDateBasedTv = dateStr !== null;
 
-  if (season !== null && episode !== null) {
+  if (isSeasonBasedTv || isDateBasedTv) {
     // TV Show
-    const pathParts = filepath.split(path.sep);
+    const pathParts = path.normalize(filepath).split(path.sep);
     let showDir: string | null = null;
 
     // Find the TV Shows directory and take the next part
     for (let i = 0; i < pathParts.length; i++) {
-      if (pathParts[i] === 'TV Shows' && i + 1 < pathParts.length) {
+      if (pathParts[i]?.toLowerCase() === 'tv shows' && i + 1 < pathParts.length) {
         showDir = pathParts[i + 1];
         break;
       }
+    }
+
+    if (!showDir) {
+      showDir = inferShowDirectoryFromPath(filepath);
     }
 
     // Extract year from show directory
@@ -263,37 +367,45 @@ export function parseMediaFile(filepath: string): MediaInfo {
     }
 
     // Clean up show directory name
-    let showTitle = showDir || path.basename(path.dirname(filepath));
+    let showTitle = showDir || inferShowDirectoryFromPath(filepath);
     showTitle = showTitle.replace(/\s*\([^)]*\)/g, '').trim();
     showTitle = showTitle.replace(/\[.*?\]/g, '').trim();
     showTitle = showTitle.replace(/\s*\{[a-z0-9\-:]+\}/g, '').trim();
 
     // Remove noisy patterns
     const noisyPatterns = [
-      /\b(S\d{1,2}E\d{1,2})\b/,
-      /\b(1080p|720p|480p|2160p|4k)\b/,
-      /\b(WEB[-\s]?DL|BluRay|DVDRip|WEBRip)\b/,
-      /\b(x264|x265|h264|h265)\b/,
-      /\b(DDP?\d*\.?\d*|AAC|AC3)\b/,
-      /\b(AMZN|NF|HBO|HULU)\b/,
-      /\b(NTb|ELiTE|GalaxyTV)\b/,
-      /\[[^\]]+\]/,
-      /\{[^}]+\}/,
-      /\b(S\d{1,2})\b/,
-      /\b(COMPLETE|Series)\b/,
-      /\b(19|20)\d{2}\b/,
-      /\b\d+\b/,
+      /\bS\d{1,2}E\d{1,2}\b/gi,
+      /\bSEASONS?\s+\d{1,2}(?:\s*[-/]\s*\d{1,2})?(?:\s+\d{1,2})*\b/gi,
+      /\bS\d{1,2}(?:\s*[-/]\s*S?\d{1,2})?\b/gi,
+      /\b(1080p|720p|480p|2160p|4k)\b/gi,
+      /\b(WEB[-\s]?DL|BluRay|DVDRip|WEBRip)\b/gi,
+      /\b(x264|x265|h264|h265)\b/gi,
+      /\b(DDP?\d*\.?\d*|AAC|AC3)\b/gi,
+      /\b(AMZN|NF|HBO|HULU)\b/gi,
+      /\b(NTb|ELiTE|GalaxyTV)\b/gi,
+      /\b(REPACK|PROPER|RERIP|READNFO|INTERNAL)\b/gi,
+      /\b(EXTRAS?|BONUS)\b/gi,
+      /\[[^\]]+\]/g,
+      /\{[^}]+\}/g,
+      /\b(COMPLETE|Series)\b/gi,
+      /\b(19|20)\d{2}\b/g,
     ];
 
     for (const pattern of noisyPatterns) {
-      showTitle = showTitle.replace(pattern, '');
+      showTitle = showTitle.replace(pattern, ' ');
     }
 
     showTitle = showTitle.replace(/[._+-]/g, ' ');
     showTitle = showTitle.replace(/\s+/g, ' ').trim();
 
     const episodeTitle = extractEpisodeTitleFromFilename(stem);
-    const [dateStr, dateYear] = parseDateInFilename(filename);
+
+    let season = seasonFromFilename;
+    if (season === null && isDateBasedTv) {
+      season = parseSeasonFromPath(filepath);
+    }
+
+    const episode = episodeFromFilename;
 
     let year = yearFromDir;
     if (!year && dateYear) {
@@ -301,7 +413,7 @@ export function parseMediaFile(filepath: string): MediaInfo {
     }
 
     return {
-      content_type: 'TV Shows',
+      content_type: CONTENT_TYPE_TV,
       title: showTitle,
       year,
       season,
@@ -311,10 +423,32 @@ export function parseMediaFile(filepath: string): MediaInfo {
     };
   } else {
     // Movie
-    const [title, year] = guessTitleAndYearFromStem(stem);
+    const [titleFromStem, yearFromStem] = guessTitleAndYearFromStem(stem);
+    const movieDirInfo = parseMovieDirectoryFromPath(filepath);
+
+    let title = titleFromStem;
+    let year = yearFromStem;
+
+    if (movieDirInfo) {
+      const [dirTitle, dirYear] = movieDirInfo;
+      const normalizedStemTitle = normalizeForComparison(titleFromStem);
+      const normalizedDirTitle = normalizeForComparison(dirTitle);
+
+      const yearsCompatible = !yearFromStem || !dirYear || yearFromStem === dirYear;
+      const stemContainsFolderTitle =
+        normalizedDirTitle.length >= 4 && normalizedStemTitle.includes(normalizedDirTitle);
+
+      // Prefer structured folder titles when filename appears to add noisy descriptors.
+      if (!titleFromStem || (yearsCompatible && stemContainsFolderTitle)) {
+        title = dirTitle;
+        year = dirYear ?? yearFromStem;
+      } else if (!year && dirYear) {
+        year = dirYear;
+      }
+    }
 
     return {
-      content_type: 'Movies',
+      content_type: CONTENT_TYPE_MOVIES,
       title,
       year,
       season: null,

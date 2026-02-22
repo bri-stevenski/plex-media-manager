@@ -12,7 +12,7 @@ import { getLogger } from './logger';
 
 const logger = getLogger();
 
-export class FileOperationError extends Error {
+class FileOperationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'FileOperationError';
@@ -20,47 +20,37 @@ export class FileOperationError extends Error {
 }
 
 /**
- * Get file size in bytes.
- */
-export function getFileSize(filepath: string): number {
-  try {
-    const stats = fs.statSync(filepath);
-    return stats.size;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * Get available disk space in bytes for a directory.
- */
-export function getAvailableSpace(directory: string): number {
-  try {
-    const stats = fs.statSync(directory);
-    // Note: This is a simplified implementation
-    // In production, you might use a library like 'diskusage'
-    return stats.size;
-  } catch {
-    return 0;
-  }
-}
-
-/**
  * Move a file from source to destination.
  */
 function moveFile(source: string, destination: string, createDirs: boolean = true): void {
+  if (!fs.existsSync(source)) {
+    throw new FileOperationError(`Source file does not exist: ${source}`);
+  }
+
+  if (createDirs) {
+    ensureDirectoryExists(path.dirname(destination));
+  }
+
   try {
-    if (!fs.existsSync(source)) {
-      throw new FileOperationError(`Source file does not exist: ${source}`);
-    }
-
-    if (createDirs) {
-      ensureDirectoryExists(path.dirname(destination));
-    }
-
     fs.renameSync(source, destination);
     logger.debug(`Moved file: ${source} -> ${destination}`);
+    return;
   } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError?.code === 'EXDEV') {
+      // Cross-device rename (different drive/mount), fallback to copy + delete.
+      try {
+        fs.copyFileSync(source, destination);
+        fs.unlinkSync(source);
+        logger.debug(`Moved file via copy+delete: ${source} -> ${destination}`);
+        return;
+      } catch (copyError) {
+        throw new FileOperationError(
+          `Failed cross-device move ${source} to ${destination}: ${copyError}`,
+        );
+      }
+    }
+
     throw new FileOperationError(`Failed to move file ${source} to ${destination}: ${error}`);
   }
 }
@@ -102,7 +92,7 @@ export function* scanMediaFiles(directory: string, recursive: boolean = true): G
 /**
  * Ensure a directory exists, creating it if necessary.
  */
-export function ensureDirectoryExists(directory: string): void {
+function ensureDirectoryExists(directory: string): void {
   try {
     if (!fs.existsSync(directory)) {
       fs.mkdirSync(directory, { recursive: true });
@@ -118,7 +108,37 @@ export function ensureDirectoryExists(directory: string): void {
  */
 export function safeMove(source: string, destination: string, errorDir?: string): boolean {
   try {
+    // Validate source file exists before moving
+    if (!fs.existsSync(source)) {
+      logger.error(`Source file does not exist: ${source}`);
+      return false;
+    }
+
+    const sourceSize = fs.statSync(source).size;
+
     moveFile(source, destination);
+
+    // Verify the move was successful
+    if (!fs.existsSync(destination)) {
+      logger.error(`Destination file does not exist after move: ${destination}`);
+      return false;
+    }
+
+    if (fs.existsSync(source)) {
+      logger.error(`Source file still exists after move (incomplete operation): ${source}`);
+      return false;
+    }
+
+    // Verify destination file has expected size
+    const destSize = fs.statSync(destination).size;
+    if (sourceSize !== destSize) {
+      logger.error(
+        `File size mismatch after move. Expected ${sourceSize}, got ${destSize}: ${destination}`,
+      );
+      return false;
+    }
+
+    logger.debug(`Successfully verified move of ${path.basename(source)}`);
     return true;
   } catch (error) {
     logger.error(`Failed to move file ${source}: ${error}`);
@@ -137,13 +157,4 @@ export function safeMove(source: string, destination: string, errorDir?: string)
 
     return false;
   }
-}
-
-/**
- * Create an error directory for a specific content type.
- */
-export function createErrorDirectory(baseErrorDir: string, contentType: string): string {
-  const errorDir = path.join(baseErrorDir, contentType);
-  ensureDirectoryExists(errorDir);
-  return errorDir;
 }

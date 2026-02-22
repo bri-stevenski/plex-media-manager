@@ -1,7 +1,6 @@
 {
   "root": true,
   "env": {
-    "browser": true,
     "es2021": true,
     "node": true
   },
@@ -52,7 +51,7 @@
   },
   "overrides": [
     {
-      "files": ["src/**/*.ts", "src/**/*.tsx"],
+      "files": ["src/**/*.ts"],
       "rules": {
         "@typescript-eslint/no-var-requires": "off"
       }
