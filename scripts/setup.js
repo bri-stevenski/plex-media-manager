@@ -7,28 +7,16 @@ import { spawnSync } from 'node:child_process';
 
 const steps = [
   {
-    name: 'Use pinned Node version',
-    command: 'npm run node:use',
-  },
-  {
-    name: 'Clean build output, dependencies, and logs',
-    command: 'npm run clean:all',
-  },
-  {
     name: 'Install dependencies',
     command: 'npm install',
   },
   {
-    name: 'Apply style fixes',
-    command: 'npm run style:fix',
+    name: 'Build media renamer',
+    command: 'npm run rename:build',
   },
   {
-    name: 'Run type checks',
-    command: 'npm run type-check',
-  },
-  {
-    name: 'Build renamer CLI',
-    command: 'npm run build:all',
+    name: 'Build music renamer',
+    command: 'npm run music:build',
   },
 ];
 
