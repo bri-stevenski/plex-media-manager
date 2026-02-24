@@ -124,9 +124,23 @@ class MediaRenamer {
       }
 
       const mediaInfo = parseMediaFile(filepath);
+      logger.debug('Parsed media info', {
+        filepath: filepath.split(/[\\/]/).pop(),
+        content_type: mediaInfo.content_type,
+        title: mediaInfo.title,
+        year: mediaInfo.year,
+      });
       const tmdbData = await this.lookupTmdbMetadata(mediaInfo);
       if (!tmdbData) {
-        logger.warning(`No TMDb match found, skipping: ${filepath}`);
+        const reason =
+          mediaInfo.content_type === CONTENT_TYPE_MOVIES
+            ? `No movie match found for: "${mediaInfo.title}"${mediaInfo.year ? ` (${mediaInfo.year})` : ''}`
+            : `No TV show match found for: "${mediaInfo.title}"${mediaInfo.year ? ` (${mediaInfo.year})` : ''}`;
+        logger.warning(`Skipping file: ${reason}`, {
+          filepath: filepath.split(/[\\/]/).pop(),
+          lookup_type: mediaInfo.content_type,
+          title: mediaInfo.title,
+        });
         return 'failed';
       }
 

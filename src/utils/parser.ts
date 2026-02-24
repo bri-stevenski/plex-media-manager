@@ -334,13 +334,17 @@ export function parseMediaFile(filepath: string): MediaInfo {
   const stem = path.basename(filepath, path.extname(filepath));
   const filename = path.basename(filepath);
 
+  // Check if it's in a Movies folder (strong indicator it's a movie)
+  const isInMoviesFolder = /\bmovies?\b/i.test(filepath);
+
   // Check if it's a TV show by looking for season/episode or date-based patterns
   const [seasonFromFilename, episodeFromFilename] = parseTvFilename(filename);
   const [dateStr, dateYear] = parseDateInFilename(filename);
   const isSeasonBasedTv = seasonFromFilename !== null && episodeFromFilename !== null;
   const isDateBasedTv = dateStr !== null;
 
-  if (isSeasonBasedTv || isDateBasedTv) {
+  // Movies in Movies folders take precedence over ambiguous patterns
+  if ((isSeasonBasedTv || isDateBasedTv) && !isInMoviesFolder) {
     // TV Show
     const pathParts = path.normalize(filepath).split(path.sep);
     let showDir: string | null = null;

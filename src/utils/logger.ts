@@ -1,13 +1,18 @@
 /**
- * Structured logging system for the Plex media tool.
+ * Structured logging system for the Plex media tool using Winston.
  *
- * This module provides a centralized logging system with JSON formatting,
- * multiple log levels, and file rotation capabilities.
+ * This module provides a centralized logging system with:
+ * - Color-coded console output
+ * - JSON file logging
+ * - Structured log entries
+ * - Multiple log levels
+ * - File rotation capabilities
  */
 
 import fs from 'fs';
 import path from 'path';
-import { DEFAULT_LOG_LEVEL, LOG_DIR, LOG_LEVELS } from './constants';
+import winston from 'winston';
+import { DEFAULT_LOG_LEVEL, LOG_DIR } from './constants';
 
 interface LogEntry {
   timestamp: string;
@@ -21,10 +26,8 @@ interface LogEntry {
 }
 
 export class PlexLogger {
+  private winstonLogger: winston.Logger;
   private logLevel: string;
-  private logDir: string;
-  private logFile: string;
-  private enableConsole: boolean;
   private name: string;
 
   constructor(
@@ -35,81 +38,82 @@ export class PlexLogger {
   ) {
     this.name = name;
     this.logLevel = logLevel.toUpperCase();
-    this.logDir = logDir || LOG_DIR;
-    this.enableConsole = enableConsole;
+    const actualLogDir = logDir || LOG_DIR;
 
     // Create log directory if it doesn't exist
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
+    if (!fs.existsSync(actualLogDir)) {
+      fs.mkdirSync(actualLogDir, { recursive: true });
     }
 
     // Generate timestamped log filename
     const timestamp = new Date().toISOString().replace(/[:.-]/g, '').slice(0, 15);
-    this.logFile = path.join(this.logDir, `${name}_${timestamp}.log`);
-  }
+    const logFile = path.join(actualLogDir, `${name}_${timestamp}.log`);
 
-  private formatLogEntry(level: string, message: string, extra?: Record<string, any>): LogEntry {
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      logger: this.name,
-      message,
-      module: 'plex-media-tool',
-    };
+    // Create custom format for console with colors
+    const consoleFormat = winston.format.combine(
+      winston.format.colorize({ all: true }),
+      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+      winston.format.printf(({ timestamp, level, message, ...meta }) => {
+        const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 0) : '';
+        return `${timestamp} ${level}: ${message}${metaStr ? ' ' + metaStr : ''}`;
+      }),
+    );
 
-    if (extra) {
-      Object.assign(entry, extra);
+    // Create custom format for file (JSON)
+    const fileFormat = winston.format.combine(
+      winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
+      winston.format.json(),
+      winston.format.printf(({ timestamp, level, message, ...meta }: any) => {
+        const entry: LogEntry = {
+          timestamp: String(timestamp),
+          level: String(level),
+          logger: this.name,
+          message: String(message),
+          module: 'plex-media-tool',
+          ...meta,
+        };
+        return JSON.stringify(entry);
+      }),
+    );
+
+    const transports: winston.transport[] = [
+      new winston.transports.File({
+        filename: logFile,
+        format: fileFormat,
+        level: this.logLevel.toLowerCase(),
+      }),
+    ];
+
+    if (enableConsole) {
+      transports.push(
+        new winston.transports.Console({
+          format: consoleFormat,
+          level: this.logLevel.toLowerCase(),
+        }),
+      );
     }
 
-    return entry;
-  }
-
-  private writeLog(logEntry: LogEntry): void {
-    const logLine = JSON.stringify(logEntry) + '\n';
-
-    // Write to console if enabled
-    if (this.enableConsole) {
-      const prefix = `${logEntry.timestamp} - ${logEntry.level}`;
-      console.warn(`${prefix}: ${logEntry.message}`);
-    }
-
-    // Write to file
-    try {
-      fs.appendFileSync(this.logFile, logLine, 'utf-8');
-    } catch (error) {
-      console.error(`Failed to write to log file: ${error}`);
-    }
+    this.winstonLogger = winston.createLogger({
+      level: this.logLevel.toLowerCase(),
+      transports,
+      exitOnError: false,
+    });
   }
 
   debug(message: string, extra?: Record<string, any>): void {
-    this._log('DEBUG', message, extra);
+    this.winstonLogger.debug(message, extra);
   }
 
   info(message: string, extra?: Record<string, any>): void {
-    this._log('INFO', message, extra);
+    this.winstonLogger.info(message, extra);
   }
 
   warning(message: string, extra?: Record<string, any>): void {
-    this._log('WARNING', message, extra);
+    this.winstonLogger.warn(message, extra);
   }
 
   error(message: string, extra?: Record<string, any>): void {
-    this._log('ERROR', message, extra);
-  }
-
-  private _log(level: string, message: string, extra?: Record<string, any>): void {
-    if (!this.shouldLog(level)) {
-      return;
-    }
-
-    const logEntry = this.formatLogEntry(level, message, extra);
-    this.writeLog(logEntry);
-  }
-
-  private shouldLog(level: string): boolean {
-    const configuredLevel = LOG_LEVELS[this.logLevel] ?? LOG_LEVELS[DEFAULT_LOG_LEVEL];
-    const messageLevel = LOG_LEVELS[level] ?? LOG_LEVELS.INFO;
-    return messageLevel >= configuredLevel;
+    this.winstonLogger.error(message, extra);
   }
 }
 

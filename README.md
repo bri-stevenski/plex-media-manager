@@ -26,22 +26,42 @@ rather than your current shell working directory.
 
 ## Setup
 
-1. Install dependencies:
+Run full setup (version switch, clean install, style fixes, type-check, build):
+
+```bash
+npm run setup
+```
+
+Preview setup steps and run environment checks first:
+
+```bash
+npm run setup:check
+```
+
+Or run the steps manually:
+
+1. Use the pinned Node/NPM versions from `.nvmrc`:
+
+```bash
+npm run node:use
+```
+
+2. Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Create `.env` with your TMDb API key:
+3. Create `.env` with your TMDb API key:
 
 ```env
 TMDB_API_KEY=your_api_key_here
 ```
 
-3. Build the CLI:
+4. Build the CLI:
 
 ```bash
-npm run build:tools
+npm run build:rename
 ```
 
 ## Usage
@@ -88,5 +108,8 @@ npm run rename -- --output-subfolder rename-complete "/media/queue"
 
 ## Development
 
-- `npm run build:tools` compiles the CLI to `dist/`
-- `npm run validate` runs type-check, lint, and format checks
+- `npm run build:rename` compiles the renamer CLI to `dist/`
+- `npm run logs:pretty` reads logs directly via `scripts/pretty-log.js` (no build step)
+- `npm run logs:failures` shows only failure-causing entries from a run
+- `npm run style:check` runs lint + format checks
+- `npm run type-check` runs TypeScript checks
