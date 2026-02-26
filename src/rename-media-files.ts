@@ -20,7 +20,7 @@ import {
   ORGANIZED_FOLDER,
   QUEUE_FOLDER,
 } from './utils/constants';
-import { safeMove, scanMediaFiles } from './utils/file-manager';
+import { pruneEmptyParentDirectories, safeMove, scanMediaFiles } from './utils/file-manager';
 import { setupLogging, getLogger } from './utils/logger';
 import { parseMediaFile, type MediaInfo } from './utils/parser';
 import {
@@ -42,6 +42,7 @@ class MediaRenamer {
   private readonly destinationRoot: string;
   private readonly tmdbClient: TMDbClient;
   private running: boolean;
+  private sourceRoot: string | null;
 
   constructor(
     dryRun: boolean = false,
@@ -57,6 +58,7 @@ class MediaRenamer {
     this.libraryRoot = path.resolve(libraryRoot);
     this.destinationRoot = path.resolve(this.libraryRoot, outputSubfolder);
     this.running = true;
+    this.sourceRoot = null;
 
     setupLogging(logLevel, LOG_DIR, true);
     this.tmdbClient = new TMDbClient();
@@ -85,6 +87,7 @@ class MediaRenamer {
       throw new Error(`Source directory not found: ${sourceRoot}`);
     }
 
+    this.sourceRoot = sourceRoot;
     logger.info(`Starting TMDb organization from: ${sourceRoot}`);
 
     let totalFilesProcessed = 0;
@@ -365,6 +368,10 @@ class MediaRenamer {
     if (!success) {
       logger.error(`Move failed: ${sourcePath} -> ${destinationPath}`);
       return 'failed';
+    }
+
+    if (this.sourceRoot) {
+      pruneEmptyParentDirectories(path.dirname(sourcePath), this.sourceRoot);
     }
 
     logger.info(`Moved: ${sourceName} -> ${destinationRelative}`);

@@ -158,3 +158,69 @@ export function safeMove(source: string, destination: string, errorDir?: string)
     return false;
   }
 }
+
+export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string): void {
+  const resolvedStopAt = path.resolve(stopAtDir);
+  const normalizeForComparison = (value: string) =>
+    process.platform === 'win32' ? value.toLowerCase() : value;
+
+  const stopAtComparable = normalizeForComparison(resolvedStopAt);
+  let current = path.resolve(startDir);
+  const relativeToStop = path.relative(resolvedStopAt, current);
+
+  if (relativeToStop.startsWith('..') || path.isAbsolute(relativeToStop)) {
+    logger.debug(`Skip pruning: ${current} is outside ${resolvedStopAt}`);
+    return;
+  }
+
+  while (
+    normalizeForComparison(current).startsWith(stopAtComparable) &&
+    normalizeForComparison(current) !== stopAtComparable
+  ) {
+    if (!fs.existsSync(current)) {
+      break;
+    }
+
+    let stats: fs.Stats;
+    try {
+      stats = fs.statSync(current);
+    } catch {
+      break;
+    }
+
+    if (!stats.isDirectory()) {
+      break;
+    }
+
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(current);
+    } catch {
+      break;
+    }
+
+    if (entries.length > 0) {
+      break;
+    }
+
+    try {
+      fs.rmSync(current, { force: true });
+      logger.debug(`Removed empty directory: ${current}`);
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError?.code === 'ENOTEMPTY' || nodeError?.code === 'EEXIST') {
+        break;
+      }
+
+      logger.warning(`Failed to remove empty directory ${current}: ${error}`);
+      break;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+
+    current = parent;
+  }
+}
