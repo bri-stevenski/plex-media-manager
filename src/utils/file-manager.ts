@@ -92,7 +92,7 @@ export function* scanMediaFiles(directory: string, recursive: boolean = true): G
 /**
  * Ensure a directory exists, creating it if necessary.
  */
-function ensureDirectoryExists(directory: string): void {
+export function ensureDirectoryExists(directory: string): void {
   try {
     if (!fs.existsSync(directory)) {
       fs.mkdirSync(directory, { recursive: true });

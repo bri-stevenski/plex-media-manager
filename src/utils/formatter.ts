@@ -6,7 +6,7 @@
  */
 
 import path from 'path';
-import { MEDIA_BASE_FOLDER } from './constants';
+import { MEDIA_BASE_DIR } from './constants';
 import { getLogger } from './logger';
 
 const logger = getLogger();
@@ -136,7 +136,7 @@ export function constructMoviePath(
   year: number,
   tmdbId: number,
   extension: string,
-  baseFolder: string = MEDIA_BASE_FOLDER,
+  baseFolder: string = MEDIA_BASE_DIR,
 ): string {
   const movieFolderName = formatMovieFolderName(title, year, tmdbId);
   const movieName = formatMovieName(title, year, tmdbId);
@@ -154,7 +154,7 @@ export function constructTvShowPath(
   episode: number,
   episodeTitle: string | null,
   extension: string,
-  baseFolder: string = MEDIA_BASE_FOLDER,
+  baseFolder: string = MEDIA_BASE_DIR,
 ): string {
   const showFolderName = formatTvShowFolderName(title, year, tmdbId);
   const showFolder = path.join(baseFolder, 'TV Shows', showFolderName);
@@ -178,7 +178,7 @@ export function constructTvShowDatePath(
   airDate: string,
   episodeTitle: string | null,
   extension: string,
-  baseFolder: string = MEDIA_BASE_FOLDER,
+  baseFolder: string = MEDIA_BASE_DIR,
 ): string {
   const showFolderName = formatTvShowFolderName(title, year, tmdbId);
   const showFolder = path.join(baseFolder, 'TV Shows', showFolderName);
