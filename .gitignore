@@ -2,4 +2,14 @@ node_modules
 .logs
 dist
 .env
+.env.local
 docs/generated
+
+# Docker volumes and logs
+logs/
+media/
+music/
+
+# Built executables (deploy via GitHub Releases)
+bin/
+
