@@ -13,14 +13,52 @@ dotenv.config();
 export const CONTENT_TYPE_MOVIES = 'Movies';
 export const CONTENT_TYPE_TV = 'TV Shows';
 
+function normalizeSubfolder(value: string | undefined, fallback: string): string {
+  const trimmed = (value ?? '').trim();
+  if (trimmed.length === 0) {
+    return fallback;
+  }
+
+  // Treat values as subfolders under MEDIA_BASE_DIR, even if users include leading/trailing slashes.
+  // This avoids cross-platform surprises where `/queue` would become an absolute path on POSIX.
+  const withoutLeadingSeparators = trimmed.replace(/^[/\\]+/, '');
+  const withoutTrailingSeparators = withoutLeadingSeparators.replace(/[/\\]+$/, '');
+
+  return withoutTrailingSeparators.length > 0 ? withoutTrailingSeparators : fallback;
+}
+
 // Folder name constants
 // Resolve to a stable default: sibling "media" folder next to the repo.
 // This avoids cwd-dependent behavior when commands are run from other directories.
-const REPO_PARENT_DIR = path.resolve(__dirname, '..', '..', '..');
-export const MEDIA_BASE_FOLDER =
-  process.env.MEDIA_BASE_FOLDER || path.join(REPO_PARENT_DIR, 'media');
-export const QUEUE_FOLDER = 'queue';
-export const ORGANIZED_FOLDER = 'organized';
+const REPO_DIR = path.resolve(__dirname, '..', '..');
+const REPO_PARENT_DIR = path.resolve(REPO_DIR, '..');
+const DEFAULT_MEDIA_BASE_DIR = path.join(REPO_PARENT_DIR, 'media');
+export const MEDIA_BASE_DIR = path.resolve(
+  REPO_DIR,
+  (process.env.MEDIA_BASE_DIR ?? '').trim() || DEFAULT_MEDIA_BASE_DIR,
+);
+
+// Support both *_FOLDER and legacy *_DIR env vars (e.g. QUEUE_DIR) for compatibility with existing .env files.
+export const QUEUE_FOLDER = normalizeSubfolder(
+  process.env.QUEUE_FOLDER ?? process.env.QUEUE_DIR,
+  'queue',
+);
+export const PROCESSING_FOLDER = normalizeSubfolder(
+  process.env.PROCESSING_FOLDER ?? process.env.PROCESSING_DIR,
+  'processing',
+);
+export const COMPLETED_FOLDER = normalizeSubfolder(
+  process.env.COMPLETED_FOLDER ?? process.env.COMPLETED_DIR,
+  'completed',
+);
+export const FAILED_FOLDER = normalizeSubfolder(
+  process.env.FAILED_FOLDER ?? process.env.FAILED_DIR,
+  'failed',
+);
+export const BACKUP_FOLDER = normalizeSubfolder(
+  process.env.BACKUP_FOLDER ?? process.env.BACKUP_DIR,
+  'backups',
+);
 
 // Accepted video file extensions
 export const VIDEO_EXTENSIONS = new Set(['.mkv', '.mp4', '.avi', '.mov', '.m4v', '.webm']);

@@ -16,11 +16,19 @@ import {
   CONTENT_TYPE_MOVIES,
   DEFAULT_LOG_LEVEL,
   LOG_DIR,
-  MEDIA_BASE_FOLDER,
-  ORGANIZED_FOLDER,
+  MEDIA_BASE_DIR,
+  BACKUP_FOLDER,
+  COMPLETED_FOLDER,
+  FAILED_FOLDER,
+  PROCESSING_FOLDER,
   QUEUE_FOLDER,
 } from './utils/constants';
-import { safeMove, scanMediaFiles } from './utils/file-manager';
+import {
+  ensureDirectoryExists,
+  pruneEmptyParentDirectories,
+  safeMove,
+  scanMediaFiles,
+} from './utils/file-manager';
 import { setupLogging, getLogger } from './utils/logger';
 import { parseMediaFile, type MediaInfo } from './utils/parser';
 import {
@@ -40,23 +48,35 @@ class MediaRenamer {
   private readonly useEpisodeTitles: boolean;
   private readonly libraryRoot: string;
   private readonly destinationRoot: string;
+  private readonly processingRoot: string;
+  private readonly failedRoot: string;
+  private readonly backupRoot: string;
+  private readonly processingSessionId: string;
+  private readonly processingSessionRoot: string;
   private readonly tmdbClient: TMDbClient;
   private running: boolean;
+  private sourceRoot: string | null;
 
   constructor(
     dryRun: boolean = false,
     logLevel: string = DEFAULT_LOG_LEVEL,
     recursive: boolean = true,
     useEpisodeTitles: boolean = false,
-    libraryRoot: string = MEDIA_BASE_FOLDER,
-    outputSubfolder: string = ORGANIZED_FOLDER,
+    libraryRoot: string = MEDIA_BASE_DIR,
+    outputSubfolder: string = COMPLETED_FOLDER,
   ) {
     this.dryRun = dryRun;
     this.recursive = recursive;
     this.useEpisodeTitles = useEpisodeTitles;
     this.libraryRoot = path.resolve(libraryRoot);
     this.destinationRoot = path.resolve(this.libraryRoot, outputSubfolder);
+    this.processingRoot = path.resolve(this.libraryRoot, PROCESSING_FOLDER);
+    this.failedRoot = path.resolve(this.libraryRoot, FAILED_FOLDER);
+    this.backupRoot = path.resolve(this.libraryRoot, BACKUP_FOLDER);
+    this.processingSessionId = `${new Date().toISOString().replace(/[:.]/g, '-')}-pid${process.pid}`;
+    this.processingSessionRoot = path.join(this.processingRoot, this.processingSessionId);
     this.running = true;
+    this.sourceRoot = null;
 
     setupLogging(logLevel, LOG_DIR, true);
     this.tmdbClient = new TMDbClient();
@@ -70,6 +90,9 @@ class MediaRenamer {
       use_episode_titles: useEpisodeTitles,
       library_root: this.libraryRoot,
       destination_root: this.destinationRoot,
+      processing_root: this.processingRoot,
+      failed_root: this.failedRoot,
+      backup_root: this.backupRoot,
     });
   }
 
@@ -85,6 +108,7 @@ class MediaRenamer {
       throw new Error(`Source directory not found: ${sourceRoot}`);
     }
 
+    this.sourceRoot = sourceRoot;
     logger.info(`Starting TMDb organization from: ${sourceRoot}`);
 
     let totalFilesProcessed = 0;
@@ -114,22 +138,152 @@ class MediaRenamer {
     );
   }
 
+  private getRelativeToSource(filepath: string): string {
+    if (!this.sourceRoot) {
+      return path.basename(filepath);
+    }
+
+    const relative = path.relative(this.sourceRoot, filepath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      return path.basename(filepath);
+    }
+
+    return relative;
+  }
+
+  private getUniquePath(filepath: string): string {
+    if (!fs.existsSync(filepath)) {
+      return filepath;
+    }
+
+    const dir = path.dirname(filepath);
+    const ext = path.extname(filepath);
+    const base = path.basename(filepath, ext);
+
+    for (let i = 1; i <= 1000; i++) {
+      const candidate = path.join(dir, `${base} (${i})${ext}`);
+      if (!fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    const fallback = path.join(dir, `${base} (${Date.now()})${ext}`);
+    if (!fs.existsSync(fallback)) {
+      return fallback;
+    }
+
+    throw new Error(`Unable to find an unused destination path for: ${filepath}`);
+  }
+
+  private stageToProcessing(sourcePath: string, relativePath: string): string | null {
+    const stagedPath = path.join(this.processingSessionRoot, relativePath);
+    if (this.areSamePath(sourcePath, stagedPath)) {
+      return sourcePath;
+    }
+
+    const success = safeMove(sourcePath, stagedPath);
+    if (!success) {
+      logger.error(`Failed to stage file to processing folder: ${sourcePath} -> ${stagedPath}`);
+      return null;
+    }
+
+    if (this.sourceRoot) {
+      pruneEmptyParentDirectories(path.dirname(sourcePath), this.sourceRoot);
+    }
+
+    logger.debug(`Staged file to processing folder: ${sourcePath} -> ${stagedPath}`);
+    return stagedPath;
+  }
+
+  private quarantineToFailed(sourcePath: string, relativePath: string): void {
+    const failedDestination = this.getUniquePath(path.join(this.failedRoot, relativePath));
+    const relativeDestination = path.relative(this.libraryRoot, failedDestination);
+
+    if (this.dryRun) {
+      logger.info(`DRY RUN: would move failed file -> ${relativeDestination}`);
+      return;
+    }
+
+    if (this.areSamePath(sourcePath, failedDestination)) {
+      logger.debug(`File already in failed folder: ${sourcePath}`);
+      return;
+    }
+
+    const moved = safeMove(sourcePath, failedDestination);
+    if (!moved) {
+      logger.error(`Failed to move file to failed folder: ${sourcePath} -> ${failedDestination}`);
+      this.quarantineToBackup(sourcePath, relativePath);
+      return;
+    }
+
+    if (this.sourceRoot) {
+      pruneEmptyParentDirectories(path.dirname(sourcePath), this.sourceRoot);
+    }
+    pruneEmptyParentDirectories(path.dirname(sourcePath), this.processingRoot);
+    logger.warning(`Moved failed file -> ${relativeDestination}`);
+  }
+
+  private quarantineToBackup(sourcePath: string, relativePath: string): void {
+    const backupDestination = this.getUniquePath(path.join(this.backupRoot, relativePath));
+    const relativeDestination = path.relative(this.libraryRoot, backupDestination);
+
+    if (this.dryRun) {
+      logger.info(`DRY RUN: would move file to backup folder -> ${relativeDestination}`);
+      return;
+    }
+
+    if (!fs.existsSync(sourcePath)) {
+      logger.error(`Cannot move to backup folder; source path does not exist: ${sourcePath}`);
+      return;
+    }
+
+    if (this.areSamePath(sourcePath, backupDestination)) {
+      logger.debug(`File already in backup folder: ${sourcePath}`);
+      return;
+    }
+
+    const moved = safeMove(sourcePath, backupDestination);
+    if (!moved) {
+      logger.error(`Failed to move file to backup folder: ${sourcePath} -> ${backupDestination}`);
+      return;
+    }
+
+    if (this.sourceRoot) {
+      pruneEmptyParentDirectories(path.dirname(sourcePath), this.sourceRoot);
+    }
+    pruneEmptyParentDirectories(path.dirname(sourcePath), this.processingRoot);
+    logger.warning(`Moved file to backup folder -> ${relativeDestination}`);
+  }
+
   private async processFile(filepath: string): Promise<FileResult> {
     logger.info(`Processing file: ${filepath}`);
 
-    try {
-      if (this.shouldSkipSupplementalFile(filepath)) {
-        logger.info(`Skipping supplemental file: ${filepath}`);
-        return 'skipped';
-      }
+    if (this.shouldSkipSupplementalFile(filepath)) {
+      logger.info(`Skipping supplemental file: ${filepath}`);
+      return 'skipped';
+    }
 
-      const mediaInfo = parseMediaFile(filepath);
+    const relativePath = this.getRelativeToSource(filepath);
+    let workingPath = filepath;
+
+    if (!this.dryRun && this.sourceRoot) {
+      const stagedPath = this.stageToProcessing(filepath, relativePath);
+      if (!stagedPath) {
+        this.quarantineToBackup(filepath, relativePath);
+        return 'failed';
+      }
+      workingPath = stagedPath;
+    }
+
+    try {
+      const mediaInfo = parseMediaFile(workingPath);
       logger.debug('Parsed media info', {
-        filepath: filepath.split(/[\\/]/).pop(),
+        filepath: workingPath.split(/[\\/]/).pop(),
         content_type: mediaInfo.content_type,
         title: mediaInfo.title,
         year: mediaInfo.year,
       });
+
       const tmdbData = await this.lookupTmdbMetadata(mediaInfo);
       if (!tmdbData) {
         const reason =
@@ -137,10 +291,15 @@ class MediaRenamer {
             ? `No movie match found for: "${mediaInfo.title}"${mediaInfo.year ? ` (${mediaInfo.year})` : ''}`
             : `No TV show match found for: "${mediaInfo.title}"${mediaInfo.year ? ` (${mediaInfo.year})` : ''}`;
         logger.warning(`Skipping file: ${reason}`, {
-          filepath: filepath.split(/[\\/]/).pop(),
+          filepath: workingPath.split(/[\\/]/).pop(),
           lookup_type: mediaInfo.content_type,
           title: mediaInfo.title,
         });
+
+        if (!this.dryRun) {
+          this.quarantineToFailed(workingPath, relativePath);
+        }
+
         return 'failed';
       }
 
@@ -148,15 +307,23 @@ class MediaRenamer {
         await this.enrichEpisodeMetadata(mediaInfo, tmdbData);
       }
 
-      const destinationPath = this.buildDestinationPath(filepath, mediaInfo, tmdbData);
+      const destinationPath = this.buildDestinationPath(workingPath, mediaInfo, tmdbData);
       if (!destinationPath) {
-        logger.warning(`Could not build destination path, skipping: ${filepath}`);
-        return 'skipped';
+        logger.warning(`Could not build destination path for ${workingPath}`);
+
+        if (!this.dryRun) {
+          this.quarantineToFailed(workingPath, relativePath);
+        }
+
+        return 'failed';
       }
 
-      return this.moveToDestination(filepath, destinationPath);
+      return this.moveToDestination(workingPath, destinationPath, relativePath);
     } catch (error) {
-      logger.error(`Failed to process file ${filepath}: ${error}`);
+      logger.error(`Failed to process file ${workingPath}: ${error}`);
+      if (!this.dryRun) {
+        this.quarantineToFailed(workingPath, relativePath);
+      }
       return 'failed';
     }
   }
@@ -342,7 +509,11 @@ class MediaRenamer {
     );
   }
 
-  private moveToDestination(sourcePath: string, destinationPath: string): FileResult {
+  private moveToDestination(
+    sourcePath: string,
+    destinationPath: string,
+    relativePath: string,
+  ): FileResult {
     if (this.areSamePath(sourcePath, destinationPath)) {
       logger.debug(`Already organized: ${sourcePath}`);
       return 'skipped';
@@ -350,6 +521,9 @@ class MediaRenamer {
 
     if (fs.existsSync(destinationPath)) {
       logger.error(`Destination already exists: ${destinationPath}`);
+      if (!this.dryRun) {
+        this.quarantineToFailed(sourcePath, relativePath);
+      }
       return 'failed';
     }
 
@@ -364,8 +538,11 @@ class MediaRenamer {
     const success = safeMove(sourcePath, destinationPath);
     if (!success) {
       logger.error(`Move failed: ${sourcePath} -> ${destinationPath}`);
+      this.quarantineToBackup(sourcePath, relativePath);
       return 'failed';
     }
+
+    pruneEmptyParentDirectories(path.dirname(sourcePath), this.processingRoot);
 
     logger.info(`Moved: ${sourceName} -> ${destinationRelative}`);
     return 'organized';
@@ -418,30 +595,47 @@ async function main() {
     .option(
       '--library-root <path>',
       'Root media folder that contains source and destination media folders',
-      MEDIA_BASE_FOLDER,
+      MEDIA_BASE_DIR,
     )
     .option(
       '--output-subfolder <name>',
       'Subfolder under library-root where organized files are written',
-      ORGANIZED_FOLDER,
+      COMPLETED_FOLDER,
     )
     .option('--log-level <level>', 'Logging level (DEBUG, INFO, WARN, ERROR)', DEFAULT_LOG_LEVEL)
     .action(async (sourceDir, options) => {
-      const libraryRoot = path.resolve(options.libraryRoot || MEDIA_BASE_FOLDER);
-      const resolvedSource = sourceDir
-        ? path.resolve(sourceDir)
-        : path.join(libraryRoot, QUEUE_FOLDER);
-
-      const renamer = new MediaRenamer(
-        options.dryRun || false,
-        options.logLevel,
-        options.recursive !== false,
-        options.useEpisodeTitles || false,
-        libraryRoot,
-        options.outputSubfolder || ORGANIZED_FOLDER,
-      );
-
       try {
+        const libraryRoot = path.resolve(options.libraryRoot || MEDIA_BASE_DIR);
+        const queueRoot = path.resolve(libraryRoot, QUEUE_FOLDER);
+        const processingRoot = path.resolve(libraryRoot, PROCESSING_FOLDER);
+        const failedRoot = path.resolve(libraryRoot, FAILED_FOLDER);
+        const backupRoot = path.resolve(libraryRoot, BACKUP_FOLDER);
+        const destinationRoot = path.resolve(
+          libraryRoot,
+          options.outputSubfolder || COMPLETED_FOLDER,
+        );
+
+        ensureDirectoryExists(libraryRoot);
+        ensureDirectoryExists(processingRoot);
+        ensureDirectoryExists(failedRoot);
+        ensureDirectoryExists(backupRoot);
+        ensureDirectoryExists(destinationRoot);
+
+        if (!sourceDir) {
+          ensureDirectoryExists(queueRoot);
+        }
+
+        const resolvedSource = sourceDir ? path.resolve(sourceDir) : queueRoot;
+
+        const renamer = new MediaRenamer(
+          options.dryRun || false,
+          options.logLevel,
+          options.recursive !== false,
+          options.useEpisodeTitles || false,
+          libraryRoot,
+          options.outputSubfolder || COMPLETED_FOLDER,
+        );
+
         await renamer.run(resolvedSource);
       } catch (error) {
         console.error(`Error: ${error}`);
