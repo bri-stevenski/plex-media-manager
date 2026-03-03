@@ -33,6 +33,37 @@ Default `library-root` is the sibling `media` folder next to the repo
 (for example `../media` from the repo root), resolved from the tool location
 rather than your current shell working directory.
 
+## Deployment Options
+
+Choose how to run the tool:
+
+### 🐳 Docker (Recommended for most users)
+- No Node.js installation needed
+- Consistent environment across machines
+- See [DOCKER.md](DOCKER.md) for setup
+
+```bash
+docker compose up media-renamer
+```
+
+### 📦 Standalone Executable
+- Single self-contained binary
+- No Docker or Node.js required
+- See [PKG.md](PKG.md) for details
+
+```bash
+./bin/plex-rename-media/plex-rename-media --help
+```
+
+### 💻 Local Development
+- Full development environment
+- Direct Node.js/npm execution
+- See Setup section below
+
+```bash
+npm run rename:run
+```
+
 ## Setup
 
 Run full setup (version switch, clean install, style fixes, type-check, build):

@@ -7,6 +7,6 @@
     "moduleResolution": "node",
     "outDir": "dist"
   },
-  "include": ["src/rename-media-files.ts", "src/utils/*.ts"],
+  "include": ["src/rename-music-files.ts", "src/utils/*.ts"],
   "exclude": ["node_modules"]
 }

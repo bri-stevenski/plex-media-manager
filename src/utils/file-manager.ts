@@ -19,6 +19,25 @@ class FileOperationError extends Error {
   }
 }
 
+const SIDECAR_EXTENSIONS = new Set([
+  // Subtitles
+  '.srt',
+  '.ass',
+  '.ssa',
+  '.sub',
+  '.idx',
+  '.vtt',
+  // Metadata
+  '.nfo',
+]);
+
+const QUEUE_ARTIFACT_PATTERNS: ReadonlyArray<RegExp> = [
+  /^rarbg\.txt$/i,
+  /^rarbg_do_not_mirror\.exe$/i,
+  /^www\.yts\.[^.]+\.(jpg|jpeg|png|txt)$/i,
+  /^www\.yify-torrents\.com\.(jpg|jpeg|png|txt)$/i,
+];
+
 /**
  * Move a file from source to destination.
  */
@@ -159,6 +178,159 @@ export function safeMove(source: string, destination: string, errorDir?: string)
   }
 }
 
+export type SidecarMoveSummary = {
+  moved: number;
+  skipped: number;
+  failed: number;
+};
+
+/**
+ * Move common "sidecar" files (subtitles, nfo, etc.) that match a media filename.
+ *
+ * Example:
+ *   Movie.2024.mkv -> Movie (2024) {tmdb-123}.mkv
+ *   Movie.2024.en.srt -> Movie (2024) {tmdb-123}.en.srt
+ */
+export function moveSidecarFiles(
+  sourceMediaPath: string,
+  destinationMediaPath: string,
+): SidecarMoveSummary {
+  const sourceDir = path.dirname(sourceMediaPath);
+  const destinationDir = path.dirname(destinationMediaPath);
+
+  const sourceStem = path.basename(sourceMediaPath, path.extname(sourceMediaPath));
+  const destinationStem = path.basename(destinationMediaPath, path.extname(destinationMediaPath));
+
+  if (!fs.existsSync(sourceDir)) {
+    return { moved: 0, skipped: 0, failed: 0 };
+  }
+
+  let moved = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+  } catch (error) {
+    logger.warning(`Failed to list sidecar candidates in ${sourceDir}: ${error}`);
+    return { moved: 0, skipped: 0, failed: 0 };
+  }
+
+  const sourceStemLower = sourceStem.toLowerCase();
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const filename = entry.name;
+    const extLower = path.extname(filename).toLowerCase();
+    if (!SIDECAR_EXTENSIONS.has(extLower)) {
+      continue;
+    }
+
+    const filenameLower = filename.toLowerCase();
+    const matchesExactStem = filenameLower === `${sourceStemLower}${extLower}`;
+    const matchesStemPrefix = filenameLower.startsWith(`${sourceStemLower}.`);
+    if (!matchesExactStem && !matchesStemPrefix) {
+      continue;
+    }
+
+    const suffix = filename.substring(sourceStem.length);
+    const destinationFilename = `${destinationStem}${suffix}`;
+
+    const sourcePath = path.join(sourceDir, filename);
+    const destinationPath = path.join(destinationDir, destinationFilename);
+
+    if (fs.existsSync(destinationPath)) {
+      logger.warning(`Sidecar destination already exists, skipping: ${destinationPath}`);
+      skipped++;
+      continue;
+    }
+
+    const success = safeMove(sourcePath, destinationPath);
+    if (success) {
+      moved++;
+      logger.info(`Moved sidecar: ${filename} -> ${destinationFilename}`);
+    } else {
+      failed++;
+      logger.warning(`Failed moving sidecar: ${sourcePath} -> ${destinationPath}`);
+    }
+  }
+
+  return { moved, skipped, failed };
+}
+
+/**
+ * Remove common junk files left behind by download sources.
+ */
+export function removeKnownQueueArtifacts(directory: string): number {
+  if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) {
+    return 0;
+  }
+
+  let deleted = 0;
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(directory, { withFileTypes: true });
+  } catch (error) {
+    logger.warning(`Failed to list queue artifacts in ${directory}: ${error}`);
+    return 0;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const filename = entry.name;
+    if (!QUEUE_ARTIFACT_PATTERNS.some((pattern) => pattern.test(filename))) {
+      continue;
+    }
+
+    const fullPath = path.join(directory, filename);
+    try {
+      fs.unlinkSync(fullPath);
+      deleted++;
+      logger.info(`Deleted queue artifact: ${fullPath}`);
+    } catch (error) {
+      logger.warning(`Failed deleting queue artifact ${fullPath}: ${error}`);
+    }
+  }
+
+  return deleted;
+}
+
+/**
+ * Remove empty directories upward from `startDir` until (but not including) `stopDir`.
+ */
+export function pruneEmptyDirectories(startDir: string, stopDir: string): number {
+  const stopAbs = path.resolve(stopDir);
+  let current = path.resolve(startDir);
+  let removed = 0;
+
+  while (true) {
+    const relativeToStop = path.relative(stopAbs, current);
+    if (relativeToStop.startsWith('..') || path.isAbsolute(relativeToStop)) {
+      break;
+    }
+
+    if (current === stopAbs) {
+      break;
+    }
+
+    if (!fs.existsSync(current)) {
+      current = path.dirname(current);
+      continue;
+    }
+
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(current);
+    } catch (error) {
+      logger.warning(`Failed to read directory during prune: ${current}: ${error}`);
 export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string): void {
   const resolvedStopAt = path.resolve(stopAtDir);
   const normalizeForComparison = (value: string) =>
@@ -204,23 +376,16 @@ export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string)
     }
 
     try {
-      fs.rmSync(current, { force: true });
+      fs.rmdirSync(current);
+      removed++;
       logger.debug(`Removed empty directory: ${current}`);
     } catch (error) {
-      const nodeError = error as NodeJS.ErrnoException;
-      if (nodeError?.code === 'ENOTEMPTY' || nodeError?.code === 'EEXIST') {
-        break;
-      }
-
       logger.warning(`Failed to remove empty directory ${current}: ${error}`);
       break;
     }
 
-    const parent = path.dirname(current);
-    if (parent === current) {
-      break;
-    }
-
-    current = parent;
+    current = path.dirname(current);
   }
+
+  return removed;
 }

@@ -86,5 +86,5 @@ export const LOG_LEVELS: Record<string, number> = {
   WARNING: 30,
   ERROR: 40,
 };
-export const DEFAULT_LOG_LEVEL = 'INFO';
+export const DEFAULT_LOG_LEVEL = (process.env.LOG_LEVEL || 'INFO').toUpperCase();
 export const LOG_DIR = './.logs';

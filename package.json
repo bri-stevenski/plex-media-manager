@@ -4,8 +4,8 @@
   "private": true,
   "packageManager": "npm@11.6.2",
   "engines": {
-    "node": "25.2.1",
-    "npm": "11.6.2"
+    "node": ">=25.0.0",
+    "npm": ">=11.0.0"
   },
   "scripts": {
     "setup": "node scripts/setup.js",
@@ -24,7 +24,19 @@
     "rename:setup": "npm run setup && npm run rename:build",
     "rename:run": "node dist/rename-media-files.js",
     "rename:dry-run": "node dist/rename-media-files.js --dry-run --log-level DEBUG",
-    "rename:debug": "node dist/rename-media-files.js --log-level DEBUG"
+    "rename:debug": "node dist/rename-media-files.js --log-level DEBUG",
+    "rename:pkg": "npm run rename:build && pkg dist/rename-media-files.js --compress Brotli --out-path bin/media",
+    "music:build": "tsc --project tsconfig.music.json",
+    "music:setup": "npm run setup && npm run music:build",
+    "music:run": "node dist/rename-music-files.js",
+    "music:dry-run": "node dist/rename-music-files.js --dry-run --log-level DEBUG",
+    "music:debug": "node dist/rename-music-files.js --log-level DEBUG",
+    "music:pkg": "npm run music:build && pkg dist/rename-music-files.js --compress Brotli --out-path bin/music",
+    "pkg:all": "npm run rename:pkg && npm run music:pkg",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "dependencies": {
     "axios": "^1.13.5",
@@ -49,8 +61,22 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "pkg": "5.8.0",
     "prettier": "^3.8.1",
     "ts-node": "^10.9.2",
     "typescript": "latest"
+  },
+  "pkg": {
+    "scripts": [
+      "dist/**/*.js"
+    ],
+    "assets": [],
+    "targets": [
+      "node25-macos-x64",
+      "node25-macos-arm64",
+      "node25-windows-x64",
+      "node25-linux-x64"
+    ],
+    "outputPath": "bin"
   }
 }

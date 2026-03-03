@@ -1,0 +1,44 @@
+# Build stage
+FROM node:25.2.1-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY src ./src
+COPY scripts ./scripts
+
+# Build TypeScript
+RUN npm run rename:build
+
+# Runtime stage
+FROM node:25.2.1-alpine
+
+WORKDIR /app
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev
+
+# Copy built application from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy scripts
+COPY scripts ./scripts
+
+# Set the entrypoint to dumb-init
+ENTRYPOINT ["/usr/sbin/dumb-init", "--"]
+
+# Default command
+CMD ["node", "dist/rename-media-files.js", "--help"]

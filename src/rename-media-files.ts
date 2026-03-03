@@ -24,8 +24,10 @@ import {
   QUEUE_FOLDER,
 } from './utils/constants';
 import {
+  moveSidecarFiles,
+  pruneEmptyDirectories,
+  removeKnownQueueArtifacts,
   ensureDirectoryExists,
-  pruneEmptyParentDirectories,
   safeMove,
   scanMediaFiles,
 } from './utils/file-manager';
@@ -55,7 +57,7 @@ class MediaRenamer {
   private readonly processingSessionRoot: string;
   private readonly tmdbClient: TMDbClient;
   private running: boolean;
-  private sourceRoot: string | null;
+  private activeSourceRoot: string | null;
 
   constructor(
     dryRun: boolean = false,
@@ -76,7 +78,7 @@ class MediaRenamer {
     this.processingSessionId = `${new Date().toISOString().replace(/[:.]/g, '-')}-pid${process.pid}`;
     this.processingSessionRoot = path.join(this.processingRoot, this.processingSessionId);
     this.running = true;
-    this.sourceRoot = null;
+    this.activeSourceRoot = null;
 
     setupLogging(logLevel, LOG_DIR, true);
     this.tmdbClient = new TMDbClient();
@@ -110,13 +112,16 @@ class MediaRenamer {
 
     this.sourceRoot = sourceRoot;
     logger.info(`Starting TMDb organization from: ${sourceRoot}`);
+    this.activeSourceRoot = sourceRoot;
 
     let totalFilesProcessed = 0;
     let organized = 0;
     let skipped = 0;
     let failed = 0;
 
-    for (const filepath of scanMediaFiles(sourceRoot, this.recursive)) {
+    const mediaFiles = Array.from(scanMediaFiles(sourceRoot, this.recursive));
+
+    for (const filepath of mediaFiles) {
       if (!this.running) {
         break;
       }
@@ -132,127 +137,73 @@ class MediaRenamer {
       }
     }
 
+    this.cleanupQueueArtifacts(sourceRoot);
+
     const modePrefix = this.dryRun ? 'DRY RUN COMPLETE -' : 'Organization complete -';
     logger.info(
       `${modePrefix} Total: ${totalFilesProcessed}, Organized: ${organized}, Skipped: ${skipped}, Failed: ${failed}`,
     );
   }
 
-  private getRelativeToSource(filepath: string): string {
-    if (!this.sourceRoot) {
-      return path.basename(filepath);
+  private cleanupQueueArtifacts(sourceRoot: string): void {
+    if (this.dryRun) {
+      return;
     }
 
-    const relative = path.relative(this.sourceRoot, filepath);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-      return path.basename(filepath);
+    if (path.basename(sourceRoot).toLowerCase() !== QUEUE_FOLDER.toLowerCase()) {
+      return;
     }
 
-    return relative;
+    let directories: string[] = [];
+
+    try {
+      directories = this.collectDirectories(sourceRoot);
+      for (const dir of directories) {
+        removeKnownQueueArtifacts(dir);
+      }
+    } catch (error) {
+      logger.warning(`Queue artifact cleanup pass failed for ${sourceRoot}: ${error}`);
+      return;
+    }
+
+    directories.sort((a, b) => b.length - a.length);
+    for (const dir of directories) {
+      try {
+        pruneEmptyDirectories(dir, sourceRoot);
+      } catch (error) {
+        logger.warning(`Failed pruning empty folders for ${dir}: ${error}`);
+      }
+    }
   }
 
-  private getUniquePath(filepath: string): string {
-    if (!fs.existsSync(filepath)) {
-      return filepath;
-    }
+  private collectDirectories(root: string): string[] {
+    const directories: string[] = [];
+    const stack = [root];
 
-    const dir = path.dirname(filepath);
-    const ext = path.extname(filepath);
-    const base = path.basename(filepath, ext);
+    while (stack.length > 0) {
+      const dir = stack.pop();
+      if (!dir) {
+        continue;
+      }
 
-    for (let i = 1; i <= 1000; i++) {
-      const candidate = path.join(dir, `${base} (${i})${ext}`);
-      if (!fs.existsSync(candidate)) {
-        return candidate;
+      directories.push(dir);
+
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) {
+          continue;
+        }
+        stack.push(path.join(dir, entry.name));
       }
     }
 
-    const fallback = path.join(dir, `${base} (${Date.now()})${ext}`);
-    if (!fs.existsSync(fallback)) {
-      return fallback;
-    }
-
-    throw new Error(`Unable to find an unused destination path for: ${filepath}`);
-  }
-
-  private stageToProcessing(sourcePath: string, relativePath: string): string | null {
-    const stagedPath = path.join(this.processingSessionRoot, relativePath);
-    if (this.areSamePath(sourcePath, stagedPath)) {
-      return sourcePath;
-    }
-
-    const success = safeMove(sourcePath, stagedPath);
-    if (!success) {
-      logger.error(`Failed to stage file to processing folder: ${sourcePath} -> ${stagedPath}`);
-      return null;
-    }
-
-    if (this.sourceRoot) {
-      pruneEmptyParentDirectories(path.dirname(sourcePath), this.sourceRoot);
-    }
-
-    logger.debug(`Staged file to processing folder: ${sourcePath} -> ${stagedPath}`);
-    return stagedPath;
-  }
-
-  private quarantineToFailed(sourcePath: string, relativePath: string): void {
-    const failedDestination = this.getUniquePath(path.join(this.failedRoot, relativePath));
-    const relativeDestination = path.relative(this.libraryRoot, failedDestination);
-
-    if (this.dryRun) {
-      logger.info(`DRY RUN: would move failed file -> ${relativeDestination}`);
-      return;
-    }
-
-    if (this.areSamePath(sourcePath, failedDestination)) {
-      logger.debug(`File already in failed folder: ${sourcePath}`);
-      return;
-    }
-
-    const moved = safeMove(sourcePath, failedDestination);
-    if (!moved) {
-      logger.error(`Failed to move file to failed folder: ${sourcePath} -> ${failedDestination}`);
-      this.quarantineToBackup(sourcePath, relativePath);
-      return;
-    }
-
-    if (this.sourceRoot) {
-      pruneEmptyParentDirectories(path.dirname(sourcePath), this.sourceRoot);
-    }
-    pruneEmptyParentDirectories(path.dirname(sourcePath), this.processingRoot);
-    logger.warning(`Moved failed file -> ${relativeDestination}`);
-  }
-
-  private quarantineToBackup(sourcePath: string, relativePath: string): void {
-    const backupDestination = this.getUniquePath(path.join(this.backupRoot, relativePath));
-    const relativeDestination = path.relative(this.libraryRoot, backupDestination);
-
-    if (this.dryRun) {
-      logger.info(`DRY RUN: would move file to backup folder -> ${relativeDestination}`);
-      return;
-    }
-
-    if (!fs.existsSync(sourcePath)) {
-      logger.error(`Cannot move to backup folder; source path does not exist: ${sourcePath}`);
-      return;
-    }
-
-    if (this.areSamePath(sourcePath, backupDestination)) {
-      logger.debug(`File already in backup folder: ${sourcePath}`);
-      return;
-    }
-
-    const moved = safeMove(sourcePath, backupDestination);
-    if (!moved) {
-      logger.error(`Failed to move file to backup folder: ${sourcePath} -> ${backupDestination}`);
-      return;
-    }
-
-    if (this.sourceRoot) {
-      pruneEmptyParentDirectories(path.dirname(sourcePath), this.sourceRoot);
-    }
-    pruneEmptyParentDirectories(path.dirname(sourcePath), this.processingRoot);
-    logger.warning(`Moved file to backup folder -> ${relativeDestination}`);
+    return directories;
   }
 
   private async processFile(filepath: string): Promise<FileResult> {
@@ -542,10 +493,44 @@ class MediaRenamer {
       return 'failed';
     }
 
-    pruneEmptyParentDirectories(path.dirname(sourcePath), this.processingRoot);
+    this.cleanupSourceAfterMove(sourcePath, destinationPath);
 
     logger.info(`Moved: ${sourceName} -> ${destinationRelative}`);
     return 'organized';
+  }
+
+  private cleanupSourceAfterMove(sourcePath: string, destinationPath: string): void {
+    if (this.dryRun) {
+      return;
+    }
+
+    const sourceDir = path.dirname(sourcePath);
+
+    try {
+      const sidecars = moveSidecarFiles(sourcePath, destinationPath);
+      if (sidecars.moved || sidecars.skipped || sidecars.failed) {
+        logger.info(`Sidecars - moved: ${sidecars.moved}, skipped: ${sidecars.skipped}, failed: ${sidecars.failed}`);
+      }
+    } catch (error) {
+      logger.warning(`Sidecar move failed for ${sourcePath}: ${error}`);
+    }
+
+    try {
+      const deletedArtifacts = removeKnownQueueArtifacts(sourceDir);
+      if (deletedArtifacts > 0) {
+        logger.info(`Deleted ${deletedArtifacts} queue artifact(s) from: ${sourceDir}`);
+      }
+    } catch (error) {
+      logger.warning(`Queue artifact cleanup failed for ${sourceDir}: ${error}`);
+    }
+
+    try {
+      if (this.activeSourceRoot) {
+        pruneEmptyDirectories(sourceDir, this.activeSourceRoot);
+      }
+    } catch (error) {
+      logger.warning(`Failed pruning empty folders for ${sourceDir}: ${error}`);
+    }
   }
 
   private extractYear(dateLike: unknown): number | null {

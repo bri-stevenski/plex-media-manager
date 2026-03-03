@@ -1,0 +1,44 @@
+services:
+  media-renamer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plex-media-renamer
+    environment:
+      - NODE_ENV=production
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ${MEDIA_LIBRARY_ROOT:-./media}:/media:rw
+      - ./.logs:/app/.logs:rw
+    command: node dist/rename-media-files.js
+    # Uncomment for interactive mode
+    # stdin_open: true
+    # tty: true
+    networks:
+      - plex-network
+
+  # Music renamer (placeholder for future implementation)
+  music-renamer:
+    build:
+      context: .
+      dockerfile: Dockerfile.music
+      # Will be created next
+    container_name: plex-music-renamer
+    environment:
+      - NODE_ENV=production
+      - MUSICBRAINZ_API_KEY=${MUSICBRAINZ_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ${MUSIC_LIBRARY_ROOT:-./music}:/music:rw
+      - ./.logs:/app/.logs:rw
+    command: node dist/rename-music-files.js
+    networks:
+      - plex-network
+    # Initially disabled - remove this line once music renamer is ready
+    profiles:
+      - music
+
+networks:
+  plex-network:
+    driver: bridge
