@@ -22,10 +22,10 @@
     "music:debug": "node dist/rename-music-files.js --log-level DEBUG",
     "music:pkg": "npm run music:build && pkg dist/rename-music-files.js --compress Brotli --out-path bin/music",
     "pkg:all": "npm run rename:pkg && npm run music:pkg",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "dependencies": {
     "axios": "^1.13.5",

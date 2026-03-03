@@ -20,7 +20,13 @@ import {
   ORGANIZED_FOLDER,
   QUEUE_FOLDER,
 } from './utils/constants';
-import { safeMove, scanMediaFiles } from './utils/file-manager';
+import {
+  moveSidecarFiles,
+  pruneEmptyDirectories,
+  removeKnownQueueArtifacts,
+  safeMove,
+  scanMediaFiles,
+} from './utils/file-manager';
 import { setupLogging, getLogger } from './utils/logger';
 import { parseMediaFile, type MediaInfo } from './utils/parser';
 import {
@@ -42,6 +48,7 @@ class MediaRenamer {
   private readonly destinationRoot: string;
   private readonly tmdbClient: TMDbClient;
   private running: boolean;
+  private activeSourceRoot: string | null;
 
   constructor(
     dryRun: boolean = false,
@@ -57,6 +64,7 @@ class MediaRenamer {
     this.libraryRoot = path.resolve(libraryRoot);
     this.destinationRoot = path.resolve(this.libraryRoot, outputSubfolder);
     this.running = true;
+    this.activeSourceRoot = null;
 
     setupLogging(logLevel, LOG_DIR, true);
     this.tmdbClient = new TMDbClient();
@@ -86,13 +94,16 @@ class MediaRenamer {
     }
 
     logger.info(`Starting TMDb organization from: ${sourceRoot}`);
+    this.activeSourceRoot = sourceRoot;
 
     let totalFilesProcessed = 0;
     let organized = 0;
     let skipped = 0;
     let failed = 0;
 
-    for (const filepath of scanMediaFiles(sourceRoot, this.recursive)) {
+    const mediaFiles = Array.from(scanMediaFiles(sourceRoot, this.recursive));
+
+    for (const filepath of mediaFiles) {
       if (!this.running) {
         break;
       }
@@ -108,10 +119,73 @@ class MediaRenamer {
       }
     }
 
+    this.cleanupQueueArtifacts(sourceRoot);
+
     const modePrefix = this.dryRun ? 'DRY RUN COMPLETE -' : 'Organization complete -';
     logger.info(
       `${modePrefix} Total: ${totalFilesProcessed}, Organized: ${organized}, Skipped: ${skipped}, Failed: ${failed}`,
     );
+  }
+
+  private cleanupQueueArtifacts(sourceRoot: string): void {
+    if (this.dryRun) {
+      return;
+    }
+
+    if (path.basename(sourceRoot).toLowerCase() !== QUEUE_FOLDER.toLowerCase()) {
+      return;
+    }
+
+    let directories: string[] = [];
+
+    try {
+      directories = this.collectDirectories(sourceRoot);
+      for (const dir of directories) {
+        removeKnownQueueArtifacts(dir);
+      }
+    } catch (error) {
+      logger.warning(`Queue artifact cleanup pass failed for ${sourceRoot}: ${error}`);
+      return;
+    }
+
+    directories.sort((a, b) => b.length - a.length);
+    for (const dir of directories) {
+      try {
+        pruneEmptyDirectories(dir, sourceRoot);
+      } catch (error) {
+        logger.warning(`Failed pruning empty folders for ${dir}: ${error}`);
+      }
+    }
+  }
+
+  private collectDirectories(root: string): string[] {
+    const directories: string[] = [];
+    const stack = [root];
+
+    while (stack.length > 0) {
+      const dir = stack.pop();
+      if (!dir) {
+        continue;
+      }
+
+      directories.push(dir);
+
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) {
+          continue;
+        }
+        stack.push(path.join(dir, entry.name));
+      }
+    }
+
+    return directories;
   }
 
   private async processFile(filepath: string): Promise<FileResult> {
@@ -367,8 +441,44 @@ class MediaRenamer {
       return 'failed';
     }
 
+    this.cleanupSourceAfterMove(sourcePath, destinationPath);
+
     logger.info(`Moved: ${sourceName} -> ${destinationRelative}`);
     return 'organized';
+  }
+
+  private cleanupSourceAfterMove(sourcePath: string, destinationPath: string): void {
+    if (this.dryRun) {
+      return;
+    }
+
+    const sourceDir = path.dirname(sourcePath);
+
+    try {
+      const sidecars = moveSidecarFiles(sourcePath, destinationPath);
+      if (sidecars.moved || sidecars.skipped || sidecars.failed) {
+        logger.info(`Sidecars - moved: ${sidecars.moved}, skipped: ${sidecars.skipped}, failed: ${sidecars.failed}`);
+      }
+    } catch (error) {
+      logger.warning(`Sidecar move failed for ${sourcePath}: ${error}`);
+    }
+
+    try {
+      const deletedArtifacts = removeKnownQueueArtifacts(sourceDir);
+      if (deletedArtifacts > 0) {
+        logger.info(`Deleted ${deletedArtifacts} queue artifact(s) from: ${sourceDir}`);
+      }
+    } catch (error) {
+      logger.warning(`Queue artifact cleanup failed for ${sourceDir}: ${error}`);
+    }
+
+    try {
+      if (this.activeSourceRoot) {
+        pruneEmptyDirectories(sourceDir, this.activeSourceRoot);
+      }
+    } catch (error) {
+      logger.warning(`Failed pruning empty folders for ${sourceDir}: ${error}`);
+    }
   }
 
   private extractYear(dateLike: unknown): number | null {

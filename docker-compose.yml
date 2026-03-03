@@ -10,7 +10,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - ${MEDIA_LIBRARY_ROOT:-./media}:/media:rw
-      - ./logs:/app/logs:rw
+      - ./.logs:/app/.logs:rw
     command: node dist/rename-media-files.js
     # Uncomment for interactive mode
     # stdin_open: true
@@ -31,7 +31,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - ${MUSIC_LIBRARY_ROOT:-./music}:/music:rw
-      - ./logs:/app/logs:rw
+      - ./.logs:/app/.logs:rw
     command: node dist/rename-music-files.js
     networks:
       - plex-network

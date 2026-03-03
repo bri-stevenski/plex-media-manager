@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 
 /**
  * Build standalone executables using pkg
@@ -85,7 +86,8 @@ try {
         );
         console.log(`     ✅ Built: bin/${tool.outName}/${outName}`);
       } catch (error) {
-        console.error(`     ❌ Failed to build for ${target.name}`);
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`     ❌ Failed to build for ${target.name}: ${message}`);
         process.exit(1);
       }
     }
@@ -93,8 +95,8 @@ try {
 
   console.log('\n✨ Build complete!\n');
   console.log('📂 Executables location:');
-  console.log(`   Media:  bin/plex-rename-media/`);
-  console.log(`   Music:  bin/plex-rename-music/\n`);
+  console.log('   Media:  bin/plex-rename-media/');
+  console.log('   Music:  bin/plex-rename-music/\n');
   console.log('💾 Compressed binaries are ready for distribution.\n');
 } catch (error) {
   console.error('❌ Build failed:', error.message);

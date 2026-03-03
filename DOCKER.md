@@ -2,6 +2,11 @@
 
 This project is containerized to support both media (movies/TV) and music file organization.
 
+## Prerequisites
+
+- Docker installed and running (`docker --version`)
+- Docker Compose v2 available (`docker compose version`)
+
 ## Quick Start
 
 ### 1. Create Environment File
@@ -14,22 +19,22 @@ cp .env.example .env
 
 Edit `.env` and add:
 - `TMDB_API_KEY`: Your TMDb API key
-- `MEDIA_LIBRARY_ROOT`: Path to your media library
-- `MUSIC_LIBRARY_ROOT`: Path to your music library
-- `LOG_LEVEL`: Logging level (DEBUG, INFO, WARN, ERROR)
+- `MEDIA_LIBRARY_ROOT` (optional): Host path to your media library (defaults to `./media`)
+- `MUSIC_LIBRARY_ROOT` (optional): Host path to your music library (defaults to `./music`)
+- `LOG_LEVEL` (optional): Logging level (DEBUG, INFO, WARN, ERROR)
 
 ### 2. Run Media Renamer
 
 Build and start the media renaming service:
 
 ```bash
-docker-compose up --build media-renamer
+docker compose up --build media-renamer
 ```
 
 Or for a dry-run to preview changes:
 
 ```bash
-docker-compose run --rm media-renamer node dist/rename-media-files.js --dry-run --log-level DEBUG
+docker compose run --rm media-renamer node dist/rename-media-files.js --dry-run --log-level DEBUG
 ```
 
 ### 3. Run Music Renamer (When Ready)
@@ -37,7 +42,7 @@ docker-compose run --rm media-renamer node dist/rename-media-files.js --dry-run 
 Once the music renamer is implemented, start it with:
 
 ```bash
-docker-compose up --build music-renamer
+docker compose up --build music-renamer
 ```
 
 ## Common Commands
@@ -47,19 +52,19 @@ docker-compose up --build music-renamer
 For interactive debugging:
 
 ```bash
-docker-compose run --rm media-renamer node dist/rename-media-files.js --log-level DEBUG
+docker compose run --rm media-renamer node dist/rename-media-files.js --log-level DEBUG
 ```
 
 ### View Logs
 
 ```bash
-docker-compose logs -f media-renamer
+docker compose logs -f media-renamer
 ```
 
 ### Build Only
 
 ```bash
-docker-compose build media-renamer
+docker compose build media-renamer
 ```
 
 ### Dry Run
@@ -67,7 +72,7 @@ docker-compose build media-renamer
 Test file organization without moving files:
 
 ```bash
-docker-compose run --rm media-renamer node dist/rename-media-files.js --dry-run
+docker compose run --rm media-renamer node dist/rename-media-files.js --dry-run
 ```
 
 ### Development Mode
@@ -80,11 +85,11 @@ npm run rename:run
 
 ## Volume Mounts
 
-The docker-compose configuration mounts:
+The Compose configuration mounts:
 
 - **Media Library**: `${MEDIA_LIBRARY_ROOT}:/media` - Video library
 - **Music Library**: `${MUSIC_LIBRARY_ROOT}:/music` - Audio library
-- **Logs**: `./logs:/app/logs` - Application logs
+- **Logs**: `./.logs:/app/.logs` - Application logs
 
 ## Service Architecture
 
@@ -116,7 +121,7 @@ npm run rename:run
 Mount source code for live testing:
 
 ```bash
-docker-compose run \
+docker compose run \
   -v $(pwd)/src:/app/src \
   -v $(pwd)/dist:/app/dist \
   --rm media-renamer \
@@ -147,12 +152,12 @@ grep MUSICBRAINZ_API_KEY .env
 ### View Container Logs
 
 ```bash
-docker-compose logs media-renamer
-docker-compose logs music-renamer
+docker compose logs media-renamer
+docker compose logs music-renamer
 ```
 
 ### Stop All Containers
 
 ```bash
-docker-compose down
+docker compose down
 ```

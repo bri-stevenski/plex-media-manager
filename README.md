@@ -34,7 +34,7 @@ Choose how to run the tool:
 - See [DOCKER.md](DOCKER.md) for setup
 
 ```bash
-docker-compose up media-renamer
+docker compose up media-renamer
 ```
 
 ### 📦 Standalone Executable
