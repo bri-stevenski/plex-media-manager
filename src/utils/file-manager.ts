@@ -111,7 +111,7 @@ export function* scanMediaFiles(directory: string, recursive: boolean = true): G
 /**
  * Ensure a directory exists, creating it if necessary.
  */
-function ensureDirectoryExists(directory: string): void {
+export function ensureDirectoryExists(directory: string): void {
   try {
     if (!fs.existsSync(directory)) {
       fs.mkdirSync(directory, { recursive: true });
@@ -331,6 +331,43 @@ export function pruneEmptyDirectories(startDir: string, stopDir: string): number
       entries = fs.readdirSync(current);
     } catch (error) {
       logger.warning(`Failed to read directory during prune: ${current}: ${error}`);
+export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string): void {
+  const resolvedStopAt = path.resolve(stopAtDir);
+  const normalizeForComparison = (value: string) =>
+    process.platform === 'win32' ? value.toLowerCase() : value;
+
+  const stopAtComparable = normalizeForComparison(resolvedStopAt);
+  let current = path.resolve(startDir);
+  const relativeToStop = path.relative(resolvedStopAt, current);
+
+  if (relativeToStop.startsWith('..') || path.isAbsolute(relativeToStop)) {
+    logger.debug(`Skip pruning: ${current} is outside ${resolvedStopAt}`);
+    return;
+  }
+
+  while (
+    normalizeForComparison(current).startsWith(stopAtComparable) &&
+    normalizeForComparison(current) !== stopAtComparable
+  ) {
+    if (!fs.existsSync(current)) {
+      break;
+    }
+
+    let stats: fs.Stats;
+    try {
+      stats = fs.statSync(current);
+    } catch {
+      break;
+    }
+
+    if (!stats.isDirectory()) {
+      break;
+    }
+
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(current);
+    } catch {
       break;
     }
 

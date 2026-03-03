@@ -59,6 +59,10 @@ function runChecks() {
   const nvmrcPath = resolve(process.cwd(), '.nvmrc');
   const nvmrcExists = existsSync(nvmrcPath);
   const nvmrcValue = nvmrcExists ? readFileSync(nvmrcPath, 'utf8').trim() : '';
+  const expectedNodeVersion = nvmrcValue.replace(/^v/, '');
+  const currentNodeVersion = process.version.replace(/^v/, '');
+  const nodeMatchesNvmrc =
+    nvmrcExists && expectedNodeVersion.length > 0 && currentNodeVersion === expectedNodeVersion;
 
   checks.push({
     name: '.nvmrc exists',
@@ -71,6 +75,12 @@ function runChecks() {
     detail: nvmrcValue || 'empty',
   });
 
+  checks.push({
+    name: 'node version matches .nvmrc',
+    ok: nodeMatchesNvmrc,
+    detail: `current: ${process.version} (expected: v${expectedNodeVersion || 'unknown'})`,
+  });
+
   const npmCheck = checkCommand('npm -v');
   checks.push({
     name: 'npm command available',
@@ -80,9 +90,13 @@ function runChecks() {
 
   const nvmCheck = checkCommand('nvm version');
   checks.push({
-    name: 'nvm command available',
-    ok: nvmCheck.status === 0,
-    detail: nvmCheck.status === 0 ? (nvmCheck.stdout || '').trim() : (nvmCheck.stderr || '').trim(),
+    name: 'nvm command available (for version switching)',
+    ok: nodeMatchesNvmrc || nvmCheck.status === 0,
+    detail: nodeMatchesNvmrc
+      ? 'skipped (node version already correct)'
+      : nvmCheck.status === 0
+        ? (nvmCheck.stdout || '').trim()
+        : (nvmCheck.stderr || '').trim(),
   });
 
   console.log('\nPreflight checks');

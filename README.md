@@ -15,10 +15,19 @@ Input defaults to:
 
 - `<library-root>/queue`
 
-Output defaults to:
+Files are staged in:
 
-- `<library-root>/organized/Movies/...`
-- `<library-root>/organized/TV Shows/...`
+- `<library-root>/processing/<run-id>/...`
+
+Successful output defaults to:
+
+- `<library-root>/completed/Movies/...`
+- `<library-root>/completed/TV Shows/...`
+
+Failures are moved to:
+
+- `<library-root>/failed/...` (no TMDb match / invalid metadata)
+- `<library-root>/backups/...` (move errors; safe quarantine)
 
 Default `library-root` is the sibling `media` folder next to the repo
 (for example `../media` from the repo root), resolved from the tool location
@@ -77,30 +86,30 @@ Or run the steps manually:
 npm run node:use
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Create `.env` with your TMDb API key:
+1. Create `.env` with your TMDb API key:
 
 ```env
 TMDB_API_KEY=your_api_key_here
 ```
 
-4. Build the CLI:
+1. Build the CLI:
 
 ```bash
-npm run build:rename
+npm run rename:build
 ```
 
 ## Usage
 
-Run with defaults (`../media/queue` -> `../media/organized`):
+Run with defaults (`../media/queue` -> `../media/completed`):
 
 ```bash
-npm run rename
+npm run rename:run
 ```
 
 Dry-run:
@@ -114,13 +123,13 @@ Custom source:
 Windows:
 
 ```bash
-npm run rename -- "P:\\media\\queue"
+npm run rename:run -- "P:\\media\\queue"
 ```
 
 macOS/Linux:
 
 ```bash
-npm run rename -- "/media/queue"
+npm run rename:run -- "/media/queue"
 ```
 
 Custom output subfolder:
@@ -128,18 +137,18 @@ Custom output subfolder:
 Windows:
 
 ```bash
-npm run rename -- --output-subfolder rename-complete "P:\\media\\queue"
+npm run rename:run -- --output-subfolder rename-complete "P:\\media\\queue"
 ```
 
 macOS/Linux:
 
 ```bash
-npm run rename -- --output-subfolder rename-complete "/media/queue"
+npm run rename:run -- --output-subfolder rename-complete "/media/queue"
 ```
 
 ## Development
 
-- `npm run build:rename` compiles the renamer CLI to `dist/`
+- `npm run rename:build` compiles the renamer CLI to `dist/`
 - `npm run logs:pretty` reads logs directly via `scripts/pretty-log.js` (no build step)
 - `npm run logs:failures` shows only failure-causing entries from a run
 - `npm run style:check` runs lint + format checks
