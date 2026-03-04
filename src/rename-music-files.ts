@@ -13,9 +13,8 @@ import fs from 'fs';
 import { Command } from 'commander';
 import {
   DEFAULT_LOG_LEVEL,
-  LOG_DIR,
-  MEDIA_BASE_FOLDER,
-  ORGANIZED_FOLDER,
+  MEDIA_BASE_DIR,
+  COMPLETED_FOLDER,
   QUEUE_FOLDER,
 } from './utils/constants';
 import { safeMove, scanMediaFiles } from './utils/file-manager';
@@ -40,8 +39,8 @@ class MusicOrganizer {
     setupLogging(logLevel);
     this.dryRun = dryRun;
     this.recursive = recursive;
-    this.libraryRoot = path.resolve(MEDIA_BASE_FOLDER, '..', 'music');
-    this.destinationRoot = path.join(this.libraryRoot, ORGANIZED_FOLDER);
+    this.libraryRoot = path.resolve(MEDIA_BASE_DIR, '..', 'music');
+    this.destinationRoot = path.join(this.libraryRoot, COMPLETED_FOLDER);
     this.running = false;
   }
 

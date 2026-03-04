@@ -51,6 +51,7 @@ class MediaRenamer {
   private readonly libraryRoot: string;
   private readonly destinationRoot: string;
   private readonly processingRoot: string;
+  private readonly queueRoot: string;
   private readonly failedRoot: string;
   private readonly backupRoot: string;
   private readonly processingSessionId: string;
@@ -58,6 +59,7 @@ class MediaRenamer {
   private readonly tmdbClient: TMDbClient;
   private running: boolean;
   private activeSourceRoot: string | null;
+  private sourceRoot: string | null;
 
   constructor(
     dryRun: boolean = false,
@@ -73,12 +75,14 @@ class MediaRenamer {
     this.libraryRoot = path.resolve(libraryRoot);
     this.destinationRoot = path.resolve(this.libraryRoot, outputSubfolder);
     this.processingRoot = path.resolve(this.libraryRoot, PROCESSING_FOLDER);
+    this.queueRoot = path.resolve(this.libraryRoot, QUEUE_FOLDER);
     this.failedRoot = path.resolve(this.libraryRoot, FAILED_FOLDER);
     this.backupRoot = path.resolve(this.libraryRoot, BACKUP_FOLDER);
     this.processingSessionId = `${new Date().toISOString().replace(/[:.]/g, '-')}-pid${process.pid}`;
     this.processingSessionRoot = path.join(this.processingRoot, this.processingSessionId);
     this.running = true;
     this.activeSourceRoot = null;
+    this.sourceRoot = null;
 
     setupLogging(logLevel, LOG_DIR, true);
     this.tmdbClient = new TMDbClient();
@@ -150,7 +154,8 @@ class MediaRenamer {
       return;
     }
 
-    if (path.basename(sourceRoot).toLowerCase() !== QUEUE_FOLDER.toLowerCase()) {
+    const relativeToQueue = path.relative(this.queueRoot, sourceRoot);
+    if (relativeToQueue.startsWith('..') || path.isAbsolute(relativeToQueue)) {
       return;
     }
 
@@ -169,7 +174,7 @@ class MediaRenamer {
     directories.sort((a, b) => b.length - a.length);
     for (const dir of directories) {
       try {
-        pruneEmptyDirectories(dir, sourceRoot);
+        pruneEmptyDirectories(dir, this.queueRoot);
       } catch (error) {
         logger.warning(`Failed pruning empty folders for ${dir}: ${error}`);
       }
@@ -204,6 +209,148 @@ class MediaRenamer {
     }
 
     return directories;
+  }
+
+  private getRelativeToSource(filepath: string): string {
+    if (!this.sourceRoot) {
+      return path.basename(filepath);
+    }
+
+    const relative = path.relative(this.sourceRoot, filepath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      return path.basename(filepath);
+    }
+
+    return relative;
+  }
+
+  private stageToProcessing(sourcePath: string, relativePath: string): string | null {
+    const stagedPath = path.join(this.processingSessionRoot, relativePath);
+
+    try {
+      ensureDirectoryExists(path.dirname(stagedPath));
+    } catch (error) {
+      logger.error(`Failed creating processing directory for ${stagedPath}: ${error}`);
+      return null;
+    }
+
+    const staged = safeMove(sourcePath, stagedPath);
+    if (!staged) {
+      return null;
+    }
+
+    try {
+      const sidecars = moveSidecarFiles(sourcePath, stagedPath);
+      if (sidecars.moved || sidecars.skipped || sidecars.failed) {
+        logger.info(
+          `Staged sidecars - moved: ${sidecars.moved}, skipped: ${sidecars.skipped}, failed: ${sidecars.failed}`,
+        );
+      }
+    } catch (error) {
+      logger.warning(`Failed staging sidecars for ${sourcePath}: ${error}`);
+    }
+
+    try {
+      const deletedArtifacts = removeKnownQueueArtifacts(path.dirname(sourcePath));
+      if (deletedArtifacts > 0) {
+        logger.info(`Deleted ${deletedArtifacts} queue artifact(s) from: ${path.dirname(sourcePath)}`);
+      }
+    } catch (error) {
+      logger.warning(`Queue artifact cleanup failed for ${path.dirname(sourcePath)}: ${error}`);
+    }
+
+    try {
+      const sourceDir = path.dirname(sourcePath);
+      const pruneStop = this.getPruneStopFor(sourceDir);
+      if (pruneStop) {
+        pruneEmptyDirectories(sourceDir, pruneStop);
+      }
+    } catch (error) {
+      logger.warning(`Failed pruning empty queue folders for ${path.dirname(sourcePath)}: ${error}`);
+    }
+
+    return stagedPath;
+  }
+
+  private getPruneStopFor(startDir: string): string | null {
+    const candidates = [
+      this.processingSessionRoot,
+      this.queueRoot,
+      this.sourceRoot,
+      this.activeSourceRoot,
+    ].filter(Boolean) as string[];
+
+    for (const candidate of candidates) {
+      const relative = path.relative(candidate, startDir);
+      if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  private quarantineToBackup(sourcePath: string, relativePath: string): void {
+    this.quarantineToRoot(sourcePath, relativePath, this.backupRoot, 'backups');
+  }
+
+  private quarantineToFailed(sourcePath: string, relativePath: string): void {
+    this.quarantineToRoot(sourcePath, relativePath, this.failedRoot, 'failed');
+  }
+
+  private quarantineToRoot(
+    sourcePath: string,
+    relativePath: string,
+    targetRoot: string,
+    label: string,
+  ): void {
+    const destinationPath = path.join(targetRoot, relativePath);
+
+    try {
+      ensureDirectoryExists(path.dirname(destinationPath));
+    } catch (error) {
+      logger.error(`Failed creating ${label} directory for ${destinationPath}: ${error}`);
+      return;
+    }
+
+    const moved = safeMove(sourcePath, destinationPath);
+    if (!moved) {
+      logger.error(`Failed quarantining to ${label}: ${sourcePath} -> ${destinationPath}`);
+      return;
+    }
+
+    try {
+      const sidecars = moveSidecarFiles(sourcePath, destinationPath);
+      if (sidecars.moved || sidecars.skipped || sidecars.failed) {
+        logger.info(
+          `Quarantine sidecars (${label}) - moved: ${sidecars.moved}, skipped: ${sidecars.skipped}, failed: ${sidecars.failed}`,
+        );
+      }
+    } catch (error) {
+      logger.warning(`Sidecar quarantine failed (${label}) for ${sourcePath}: ${error}`);
+    }
+
+    try {
+      const sourceDir = path.dirname(sourcePath);
+      const deletedArtifacts = removeKnownQueueArtifacts(sourceDir);
+      if (deletedArtifacts > 0) {
+        logger.info(`Deleted ${deletedArtifacts} artifact(s) from: ${sourceDir}`);
+      }
+    } catch (error) {
+      logger.warning(`Artifact cleanup failed (${label}) for ${path.dirname(sourcePath)}: ${error}`);
+    }
+
+    try {
+      const sourceDir = path.dirname(sourcePath);
+      const pruneStop = this.getPruneStopFor(sourceDir);
+      if (pruneStop) {
+        pruneEmptyDirectories(sourceDir, pruneStop);
+      }
+    } catch (error) {
+      logger.warning(`Failed pruning empty folders after quarantine (${label}) for ${sourcePath}: ${error}`);
+    }
+
+    logger.info(`Quarantined to ${label}: ${path.relative(this.libraryRoot, destinationPath)}`);
   }
 
   private async processFile(filepath: string): Promise<FileResult> {
@@ -525,8 +672,9 @@ class MediaRenamer {
     }
 
     try {
-      if (this.activeSourceRoot) {
-        pruneEmptyDirectories(sourceDir, this.activeSourceRoot);
+      const pruneStop = this.getPruneStopFor(sourceDir);
+      if (pruneStop) {
+        pruneEmptyDirectories(sourceDir, pruneStop);
       }
     } catch (error) {
       logger.warning(`Failed pruning empty folders for ${sourceDir}: ${error}`);

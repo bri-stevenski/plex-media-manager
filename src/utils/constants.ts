@@ -48,7 +48,10 @@ export const PROCESSING_FOLDER = normalizeSubfolder(
   'processing',
 );
 export const COMPLETED_FOLDER = normalizeSubfolder(
-  process.env.COMPLETED_FOLDER ?? process.env.COMPLETED_DIR,
+  process.env.COMPLETED_FOLDER ??
+    process.env.COMPLETED_DIR ??
+    process.env.PROCESSED_FOLDER ??
+    process.env.PROCESSED_DIR,
   'completed',
 );
 export const FAILED_FOLDER = normalizeSubfolder(

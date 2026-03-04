@@ -307,47 +307,24 @@ export function removeKnownQueueArtifacts(directory: string): number {
  * Remove empty directories upward from `startDir` until (but not including) `stopDir`.
  */
 export function pruneEmptyDirectories(startDir: string, stopDir: string): number {
-  const stopAbs = path.resolve(stopDir);
-  let current = path.resolve(startDir);
-  let removed = 0;
-
-  while (true) {
-    const relativeToStop = path.relative(stopAbs, current);
-    if (relativeToStop.startsWith('..') || path.isAbsolute(relativeToStop)) {
-      break;
-    }
-
-    if (current === stopAbs) {
-      break;
-    }
-
-    if (!fs.existsSync(current)) {
-      current = path.dirname(current);
-      continue;
-    }
-
-    let entries: string[];
-    try {
-      entries = fs.readdirSync(current);
-    } catch (error) {
-      logger.warning(`Failed to read directory during prune: ${current}: ${error}`);
-export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string): void {
-  const resolvedStopAt = path.resolve(stopAtDir);
+  const resolvedStopDir = path.resolve(stopDir);
   const normalizeForComparison = (value: string) =>
     process.platform === 'win32' ? value.toLowerCase() : value;
 
-  const stopAtComparable = normalizeForComparison(resolvedStopAt);
+  const stopComparable = normalizeForComparison(resolvedStopDir);
   let current = path.resolve(startDir);
-  const relativeToStop = path.relative(resolvedStopAt, current);
+  const relativeToStop = path.relative(resolvedStopDir, current);
 
   if (relativeToStop.startsWith('..') || path.isAbsolute(relativeToStop)) {
-    logger.debug(`Skip pruning: ${current} is outside ${resolvedStopAt}`);
-    return;
+    logger.debug(`Skip pruning: ${current} is outside ${resolvedStopDir}`);
+    return 0;
   }
 
+  let removed = 0;
+
   while (
-    normalizeForComparison(current).startsWith(stopAtComparable) &&
-    normalizeForComparison(current) !== stopAtComparable
+    normalizeForComparison(current).startsWith(stopComparable) &&
+    normalizeForComparison(current) !== stopComparable
   ) {
     if (!fs.existsSync(current)) {
       break;
@@ -367,7 +344,8 @@ export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string)
     let entries: string[];
     try {
       entries = fs.readdirSync(current);
-    } catch {
+    } catch (error) {
+      logger.warning(`Failed to read directory during prune: ${current}: ${error}`);
       break;
     }
 
@@ -388,4 +366,11 @@ export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string)
   }
 
   return removed;
+}
+
+/**
+ * Backwards-compatible alias for pruneEmptyDirectories.
+ */
+export function pruneEmptyParentDirectories(startDir: string, stopAtDir: string): void {
+  pruneEmptyDirectories(startDir, stopAtDir);
 }
