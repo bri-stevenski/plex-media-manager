@@ -1,9 +1,3 @@
-/**
- * Constants and configuration settings for media processing.
- *
- * This module contains constants used by the rename CLI and TMDb integration.
- */
-
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -18,27 +12,20 @@ function normalizeSubfolder(value: string | undefined, fallback: string): string
   if (trimmed.length === 0) {
     return fallback;
   }
-
-  // Treat values as subfolders under MEDIA_BASE_DIR, even if users include leading/trailing slashes.
-  // This avoids cross-platform surprises where `/queue` would become an absolute path on POSIX.
   const withoutLeadingSeparators = trimmed.replace(/^[/\\]+/, '');
   const withoutTrailingSeparators = withoutLeadingSeparators.replace(/[/\\]+$/, '');
-
   return withoutTrailingSeparators.length > 0 ? withoutTrailingSeparators : fallback;
 }
 
-// Folder name constants
-// Resolve to a stable default: sibling "media" folder next to the repo.
-// This avoids cwd-dependent behavior when commands are run from other directories.
 const REPO_DIR = path.resolve(__dirname, '..', '..');
 const REPO_PARENT_DIR = path.resolve(REPO_DIR, '..');
 const DEFAULT_MEDIA_BASE_DIR = path.join(REPO_PARENT_DIR, 'media');
+
 export const MEDIA_BASE_DIR = path.resolve(
   REPO_DIR,
   (process.env.MEDIA_BASE_DIR ?? '').trim() || DEFAULT_MEDIA_BASE_DIR,
 );
 
-// Support both *_FOLDER and legacy *_DIR env vars (e.g. QUEUE_DIR) for compatibility with existing .env files.
 export const QUEUE_FOLDER = normalizeSubfolder(
   process.env.QUEUE_FOLDER ?? process.env.QUEUE_DIR,
   'queue',
@@ -63,10 +50,8 @@ export const BACKUP_FOLDER = normalizeSubfolder(
   'backups',
 );
 
-// Accepted video file extensions
 export const VIDEO_EXTENSIONS = new Set(['.mkv', '.mp4', '.avi', '.mov', '.m4v', '.webm']);
 
-// Regex patterns for filename parsing
 export const SEASON_EPISODE_REGEX =
   /(?:[Ss]\s*)?(\d{1,2})\s*[Xx]\s*(\d{1,2})|([Ss]\s*(\d{1,2})\s*[Ee]\s*(\d{1,2}))/;
 export const YEAR_REGEX = /(19|20)\d{2}/;
@@ -77,11 +62,9 @@ export const DATE_REGEXES = [
 export const QUALITY_FORMATS_REGEX =
   /\b(480p|720p|1080p|2160p|4k|hdr|hdr10\+?|dv|web[- ]?dl|bluray|webrip|x264|x265|h\.264|h\.265|ddp?\d?\.?\d?|atmos|remux)\b/gi;
 
-// TMDb API configuration
 export const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-// Logging configuration
 export const LOG_LEVELS: Record<string, number> = {
   DEBUG: 10,
   INFO: 20,

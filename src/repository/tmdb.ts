@@ -7,8 +7,8 @@
 
 import type { AxiosInstance } from 'axios';
 import axios from 'axios';
-import { TMDB_API_KEY, TMDB_BASE_URL } from './constants';
-import { getLogger } from './logger';
+import { TMDB_API_KEY, TMDB_BASE_URL } from '../config/env';
+import { getLogger } from '../config/logger';
 
 const logger = getLogger();
 

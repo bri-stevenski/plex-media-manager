@@ -14,7 +14,8 @@ import {
   QUALITY_FORMATS_REGEX,
   SEASON_EPISODE_REGEX,
   YEAR_REGEX,
-} from './constants';
+} from '../config/env';
+import type { MediaInfo } from '../types/media';
 
 /**
  * Normalize text by replacing common separators and removing extra whitespace.
@@ -317,15 +318,7 @@ function extractEpisodeTitleFromFilename(stem: string): string | null {
   return null;
 }
 
-export interface MediaInfo {
-  content_type: string;
-  title: string;
-  year: number | null;
-  season: number | null;
-  episode: number | null;
-  episode_title: string | null;
-  date_str: string | null;
-}
+
 
 /**
  * Parse a media file and extract all relevant metadata.

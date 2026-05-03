@@ -22,7 +22,7 @@ import {
   FAILED_FOLDER,
   PROCESSING_FOLDER,
   QUEUE_FOLDER,
-} from './utils/constants';
+} from '../config/env';
 import {
   moveSidecarFiles,
   pruneEmptyDirectories,
@@ -30,21 +30,20 @@ import {
   ensureDirectoryExists,
   safeMove,
   scanMediaFiles,
-} from './utils/file-manager';
-import { setupLogging, getLogger } from './utils/logger';
-import { parseMediaFile, type MediaInfo } from './utils/parser';
+} from '../repository/fs';
+import { setupLogging, getLogger } from '../config/logger';
+import { parseMediaFile } from '../services/parser';
+import type { MediaInfo, FileResult } from '../types/media';
 import {
   constructMoviePath,
-  constructTvShowDatePath,
-  constructTvShowPath,
-} from './utils/formatter';
-import { TMDbClient } from './utils/tmdb-client';
+} from '../services/formatter';
+import { TMDbClient } from '../repository/tmdb';
 
 const logger = getLogger();
 
-type FileResult = 'organized' | 'skipped' | 'failed';
 
-class MediaRenamer {
+
+class MoviesRenamer {
   private readonly dryRun: boolean;
   private readonly recursive: boolean;
   private readonly useEpisodeTitles: boolean;
@@ -75,7 +74,7 @@ class MediaRenamer {
     this.libraryRoot = path.resolve(libraryRoot);
     this.destinationRoot = path.resolve(this.libraryRoot, outputSubfolder);
     this.processingRoot = path.resolve(this.libraryRoot, PROCESSING_FOLDER);
-    this.queueRoot = path.resolve(this.libraryRoot, QUEUE_FOLDER);
+    this.queueRoot = path.resolve(this.libraryRoot, QUEUE_FOLDER, 'movies');
     this.failedRoot = path.resolve(this.libraryRoot, FAILED_FOLDER);
     this.backupRoot = path.resolve(this.libraryRoot, BACKUP_FOLDER);
     this.processingSessionId = `${new Date().toISOString().replace(/[:.]/g, '-')}-pid${process.pid}`;
@@ -90,7 +89,7 @@ class MediaRenamer {
     process.on('SIGINT', () => this.handleShutdown());
     process.on('SIGTERM', () => this.handleShutdown());
 
-    logger.info('Media Renamer initialized', {
+    logger.info('Movies Renamer initialized', {
       dry_run: dryRun,
       recursive,
       use_episode_titles: useEpisodeTitles,
@@ -375,6 +374,12 @@ class MediaRenamer {
 
     try {
       const mediaInfo = parseMediaFile(workingPath);
+
+      if (mediaInfo.content_type !== CONTENT_TYPE_MOVIES) {
+        logger.warning(`Skipping file: Parsed as ${mediaInfo.content_type}, but this agent only processes Movies.`);
+        return 'skipped';
+      }
+
       logger.debug('Parsed media info', {
         filepath: workingPath.split(/[\\/]/).pop(),
         content_type: mediaInfo.content_type,
@@ -401,9 +406,6 @@ class MediaRenamer {
         return 'failed';
       }
 
-      if (mediaInfo.content_type !== CONTENT_TYPE_MOVIES) {
-        await this.enrichEpisodeMetadata(mediaInfo, tmdbData);
-      }
 
       const destinationPath = this.buildDestinationPath(workingPath, mediaInfo, tmdbData);
       if (!destinationPath) {
@@ -453,84 +455,10 @@ class MediaRenamer {
       return null;
     }
 
-    if (mediaInfo.content_type === CONTENT_TYPE_MOVIES) {
-      return this.tmdbClient.findBestMovieMatch(cleanTitle, mediaInfo.year || undefined);
-    }
-
-    return this.tmdbClient.findBestTvMatch(
-      cleanTitle,
-      mediaInfo.year || undefined,
-      this.useEpisodeTitles,
-    );
+    return this.tmdbClient.findBestMovieMatch(cleanTitle, mediaInfo.year || undefined);
   }
 
-  private async enrichEpisodeMetadata(
-    mediaInfo: MediaInfo,
-    tmdbData: Record<string, any>,
-  ): Promise<void> {
-    if (!tmdbData.id) {
-      return;
-    }
 
-    if (mediaInfo.date_str) {
-      try {
-        const dateEpisodeData = await this.tmdbClient.getEpisodeByAirDate(
-          tmdbData.id,
-          mediaInfo.date_str,
-        );
-
-        if (dateEpisodeData) {
-          if (typeof dateEpisodeData.name === 'string' && dateEpisodeData.name.trim().length > 0) {
-            mediaInfo.episode_title = dateEpisodeData.name.trim();
-          }
-
-          if (typeof dateEpisodeData.season_number === 'number') {
-            mediaInfo.season = dateEpisodeData.season_number;
-          }
-
-          if (typeof dateEpisodeData.episode_number === 'number') {
-            mediaInfo.episode = dateEpisodeData.episode_number;
-          }
-
-          return;
-        }
-      } catch (error) {
-        logger.warning(`TMDb air-date episode lookup failed for ${mediaInfo.title}: ${error}`);
-      }
-    }
-
-    if (mediaInfo.season === null || mediaInfo.episode === null) {
-      return;
-    }
-
-    try {
-      const episodeData = await this.tmdbClient.getEpisodeInfo(
-        tmdbData.id,
-        mediaInfo.season,
-        mediaInfo.episode,
-        mediaInfo.episode_title || undefined,
-        this.useEpisodeTitles,
-      );
-
-      if (!episodeData) {
-        return;
-      }
-
-      if (typeof episodeData.name === 'string' && episodeData.name.trim().length > 0) {
-        mediaInfo.episode_title = episodeData.name.trim();
-      }
-
-      if (typeof episodeData.season_number === 'number') {
-        mediaInfo.season = episodeData.season_number;
-      }
-
-      if (typeof episodeData.episode_number === 'number') {
-        mediaInfo.episode = episodeData.episode_number;
-      }
-    } catch (error) {
-      logger.warning(`TMDb episode enrichment failed for ${mediaInfo.title}: ${error}`);
-    }
-  }
 
   private buildDestinationPath(
     filepath: string,
@@ -545,66 +473,23 @@ class MediaRenamer {
 
     const extension = path.extname(filepath);
 
-    if (mediaInfo.content_type === CONTENT_TYPE_MOVIES) {
-      const movieTitle = String(tmdbData.title || mediaInfo.title || '').trim();
-      const tmdbYear = this.extractYear(tmdbData.release_date);
-      let movieYear = tmdbYear || mediaInfo.year;
+    const movieTitle = String(tmdbData.title || mediaInfo.title || '').trim();
+    const tmdbYear = this.extractYear(tmdbData.release_date);
+    let movieYear = tmdbYear || mediaInfo.year;
 
-      if (mediaInfo.year && tmdbYear && Math.abs(mediaInfo.year - tmdbYear) > 1) {
-        logger.warning(
-          `Movie year mismatch for '${movieTitle}': parsed ${mediaInfo.year}, TMDb ${tmdbYear}. Using parsed year for naming.`,
-        );
-        movieYear = mediaInfo.year;
-      }
-
-      if (!movieTitle || !movieYear) {
-        logger.warning(`Missing movie title/year for ${filepath}`);
-        return null;
-      }
-
-      return constructMoviePath(movieTitle, movieYear, tmdbId, extension, this.destinationRoot);
-    }
-
-    const seriesTitle = String(tmdbData.name || mediaInfo.title || '').trim();
-    const seriesYear = this.extractYear(tmdbData.first_air_date) || mediaInfo.year;
-
-    if (!seriesTitle) {
-      logger.warning(`Missing series title for TV file: ${filepath}`);
-      return null;
-    }
-
-    if (mediaInfo.date_str) {
-      const seasonForFolder = mediaInfo.season ?? 1;
-      return constructTvShowDatePath(
-        seriesTitle,
-        seriesYear || null,
-        tmdbId,
-        seasonForFolder,
-        mediaInfo.date_str,
-        mediaInfo.episode_title,
-        extension,
-        this.destinationRoot,
+    if (mediaInfo.year && tmdbYear && Math.abs(mediaInfo.year - tmdbYear) > 1) {
+      logger.warning(
+        `Movie year mismatch for '${movieTitle}': parsed ${mediaInfo.year}, TMDb ${tmdbYear}. Using parsed year for naming.`,
       );
+      movieYear = mediaInfo.year;
     }
 
-    if (mediaInfo.season === null || mediaInfo.episode === null) {
-      logger.warning(`Missing season/episode info for TV file: ${filepath}`);
+    if (!movieTitle || !movieYear) {
+      logger.warning(`Missing movie title/year for ${filepath}`);
       return null;
     }
 
-    const episodeStr = String(mediaInfo.episode).padStart(2, '0');
-    const episodeTitle = mediaInfo.episode_title || `Episode ${episodeStr}`;
-
-    return constructTvShowPath(
-      seriesTitle,
-      seriesYear || null,
-      tmdbId,
-      mediaInfo.season,
-      mediaInfo.episode,
-      episodeTitle,
-      extension,
-      this.destinationRoot,
-    );
+    return constructMoviePath(movieTitle, movieYear, tmdbId, extension, this.destinationRoot);
   }
 
   private moveToDestination(
@@ -713,11 +598,11 @@ async function main() {
   const program = new Command();
 
   program
-    .name('media-renamer')
-    .description('TMDb-based media organizer for Plex naming and folder conventions')
+    .name('plex-movies-organizer')
+    .description('TMDb-based movies organizer for Plex naming and folder conventions')
     .argument(
       '[source_dir]',
-      'Source directory to scan. Defaults to <library_root>/queue if omitted.',
+      'Source directory to scan. Defaults to <library_root>/queue/movies if omitted.',
     )
     .option('--dry-run', 'Preview changes without making modifications')
     .option('--no-recursive', 'Only scan source_dir, not nested directories')
@@ -739,7 +624,7 @@ async function main() {
     .action(async (sourceDir, options) => {
       try {
         const libraryRoot = path.resolve(options.libraryRoot || MEDIA_BASE_DIR);
-        const queueRoot = path.resolve(libraryRoot, QUEUE_FOLDER);
+        const queueRoot = path.resolve(libraryRoot, QUEUE_FOLDER, 'movies');
         const processingRoot = path.resolve(libraryRoot, PROCESSING_FOLDER);
         const failedRoot = path.resolve(libraryRoot, FAILED_FOLDER);
         const backupRoot = path.resolve(libraryRoot, BACKUP_FOLDER);
@@ -760,7 +645,7 @@ async function main() {
 
         const resolvedSource = sourceDir ? path.resolve(sourceDir) : queueRoot;
 
-        const renamer = new MediaRenamer(
+        const renamer = new MoviesRenamer(
           options.dryRun || false,
           options.logLevel,
           options.recursive !== false,

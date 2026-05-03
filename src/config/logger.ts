@@ -1,18 +1,7 @@
-/**
- * Structured logging system for the Plex media tool using Winston.
- *
- * This module provides a centralized logging system with:
- * - Color-coded console output
- * - JSON file logging
- * - Structured log entries
- * - Multiple log levels
- * - File rotation capabilities
- */
-
 import fs from 'fs';
 import path from 'path';
 import winston from 'winston';
-import { DEFAULT_LOG_LEVEL, LOG_DIR } from './constants';
+import { DEFAULT_LOG_LEVEL, LOG_DIR } from './env';
 
 interface LogEntry {
   timestamp: string;
@@ -40,16 +29,13 @@ export class PlexLogger {
     this.logLevel = logLevel.toUpperCase();
     const actualLogDir = logDir || LOG_DIR;
 
-    // Create log directory if it doesn't exist
     if (!fs.existsSync(actualLogDir)) {
       fs.mkdirSync(actualLogDir, { recursive: true });
     }
 
-    // Generate timestamped log filename
     const timestamp = new Date().toISOString().replace(/[:.-]/g, '').slice(0, 15);
     const logFile = path.join(actualLogDir, `${name}_${timestamp}.log`);
 
-    // Create custom format for console with colors
     const consoleFormat = winston.format.combine(
       winston.format.colorize({ all: true }),
       winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
@@ -59,7 +45,6 @@ export class PlexLogger {
       }),
     );
 
-    // Create custom format for file (JSON)
     const fileFormat = winston.format.combine(
       winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
       winston.format.json(),
@@ -117,7 +102,6 @@ export class PlexLogger {
   }
 }
 
-// Global logger instance
 let globalLogger: PlexLogger | null = null;
 
 export function setupLogging(

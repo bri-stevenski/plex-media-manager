@@ -7,8 +7,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { VIDEO_EXTENSIONS } from './constants';
-import { getLogger } from './logger';
+import { VIDEO_EXTENSIONS } from '../config/env';
+import { getLogger } from '../config/logger';
 
 const logger = getLogger();
 

@@ -16,13 +16,12 @@ import {
   MEDIA_BASE_DIR,
   COMPLETED_FOLDER,
   QUEUE_FOLDER,
-} from './utils/constants';
-import { safeMove, scanMediaFiles } from './utils/file-manager';
-import { setupLogging, getLogger } from './utils/logger';
+} from '../config/env';
+import { scanMediaFiles } from '../repository/fs';
+import { setupLogging, getLogger } from '../config/logger';
+import type { FileResult } from '../types/media';
 
 const logger = getLogger();
-
-type FileResult = 'organized' | 'skipped' | 'failed';
 
 class MusicOrganizer {
   private readonly dryRun: boolean;
@@ -56,7 +55,7 @@ class MusicOrganizer {
     this.running = true;
 
     try {
-      const queueFolder = path.join(this.libraryRoot, QUEUE_FOLDER);
+      const queueFolder = path.join(this.libraryRoot, QUEUE_FOLDER, 'music');
 
       if (!fs.existsSync(queueFolder)) {
         logger.info(`Queue folder does not exist: ${queueFolder}`);
@@ -99,7 +98,7 @@ class MusicOrganizer {
         }
       }
 
-      logger.info(`\n📊 Organization Summary:`);
+      logger.info('\n📊 Organization Summary:');
       logger.info(`✅ Organized: ${organized}`);
       logger.info(`⏭️  Skipped: ${skipped}`);
       logger.info(`❌ Failed: ${failed}`);
