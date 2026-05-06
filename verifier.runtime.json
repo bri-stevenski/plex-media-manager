@@ -1,0 +1,27 @@
+{
+  "name": "verifier",
+  "skills": [
+    "harness-verification"
+  ],
+  "steps": [
+    {
+      "command": "validate",
+      "when": "always"
+    },
+    {
+      "command": "check-deps",
+      "when": "always"
+    },
+    {
+      "command": "check-phase-gate",
+      "when": "always"
+    },
+    {
+      "skill": "harness-verification",
+      "when": "manual",
+      "output": "auto"
+    }
+  ],
+  "timeout": 600000,
+  "severity": "error"
+}

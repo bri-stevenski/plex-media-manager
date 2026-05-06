@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Intense-Visions/harness-engineering/main/packages/types/schema/harness.config.schema.json",
+  "version": 1,
+  "project": "plex-media-manager",
+  "level": "advanced",
+  "design": {
+    "enabled": true,
+    "platforms": ["web", "mobile"]
+  },
+  "architecture": {
+    "layers": [
+      { "name": "agents", "path": "src/agents", "allowedImports": ["services", "repository", "config", "types"] },
+      { "name": "services", "path": "src/services", "allowedImports": ["repository", "config", "types"] },
+      { "name": "repository", "path": "src/repository", "allowedImports": ["config", "types"] },
+      { "name": "config", "path": "src/config", "allowedImports": ["types"] },
+      { "name": "types", "path": "src/types", "allowedImports": [] }
+    ]
+  }
+}

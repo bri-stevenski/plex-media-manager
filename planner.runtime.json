@@ -1,0 +1,23 @@
+{
+  "name": "planner",
+  "skills": [
+    "harness-planning"
+  ],
+  "steps": [
+    {
+      "command": "validate",
+      "when": "always"
+    },
+    {
+      "command": "check-deps",
+      "when": "always"
+    },
+    {
+      "skill": "harness-planning",
+      "when": "manual",
+      "output": "auto"
+    }
+  ],
+  "timeout": 600000,
+  "severity": "error"
+}

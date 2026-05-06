@@ -1,0 +1,32 @@
+{
+  "name": "task-executor",
+  "skills": [
+    "harness-execution"
+  ],
+  "steps": [
+    {
+      "command": "validate",
+      "when": "always"
+    },
+    {
+      "command": "check-deps",
+      "when": "always"
+    },
+    {
+      "command": "scan",
+      "when": "manual"
+    },
+    {
+      "skill": "harness-execution",
+      "when": "on_plan_approved",
+      "output": "auto"
+    },
+    {
+      "skill": "harness-execution",
+      "when": "manual",
+      "output": "auto"
+    }
+  ],
+  "timeout": 900000,
+  "severity": "error"
+}
