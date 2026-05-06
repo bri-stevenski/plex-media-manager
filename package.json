@@ -45,7 +45,7 @@
     "check-deps": "harness check-deps"
   },
   "dependencies": {
-    "axios": "^1.13.5",
+    "axios": "^1.15.2",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
     "harness-engineering": "^2.0.0",
