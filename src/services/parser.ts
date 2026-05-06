@@ -14,8 +14,8 @@ import {
   QUALITY_FORMATS_REGEX,
   SEASON_EPISODE_REGEX,
   YEAR_REGEX,
-} from '../config/env';
-import type { MediaInfo } from '../types/media';
+} from '../config';
+import type { MediaInfo } from '../types';
 
 /**
  * Normalize text by replacing common separators and removing extra whitespace.

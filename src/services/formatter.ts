@@ -6,8 +6,7 @@
  */
 
 import path from 'path';
-import { MEDIA_BASE_DIR } from '../config/env';
-import { getLogger } from '../config/logger';
+import { MEDIA_BASE_DIR, getLogger } from '../config';
 
 const logger = getLogger();
 

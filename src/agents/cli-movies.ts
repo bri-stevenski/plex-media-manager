@@ -22,7 +22,9 @@ import {
   FAILED_FOLDER,
   PROCESSING_FOLDER,
   QUEUE_FOLDER,
-} from '../config/env';
+  setupLogging,
+  getLogger,
+} from '../config';
 import {
   moveSidecarFiles,
   pruneEmptyDirectories,
@@ -30,14 +32,10 @@ import {
   ensureDirectoryExists,
   safeMove,
   scanMediaFiles,
-} from '../repository/fs';
-import { setupLogging, getLogger } from '../config/logger';
-import { parseMediaFile } from '../services/parser';
-import type { MediaInfo, FileResult } from '../types/media';
-import {
-  constructMoviePath,
-} from '../services/formatter';
-import { TMDbClient } from '../repository/tmdb';
+  TMDbClient,
+} from '../repository';
+import { parseMediaFile, constructMoviePath } from '../services';
+import type { MediaInfo, FileResult } from '../types';
 
 const logger = getLogger();
 

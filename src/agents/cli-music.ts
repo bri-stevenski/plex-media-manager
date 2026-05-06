@@ -16,10 +16,11 @@ import {
   MEDIA_BASE_DIR,
   COMPLETED_FOLDER,
   QUEUE_FOLDER,
-} from '../config/env';
-import { scanMediaFiles } from '../repository/fs';
-import { setupLogging, getLogger } from '../config/logger';
-import type { FileResult } from '../types/media';
+  setupLogging,
+  getLogger,
+} from '../config';
+import { scanMediaFiles } from '../repository';
+import type { FileResult } from '../types';
 
 const logger = getLogger();
 

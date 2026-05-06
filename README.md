@@ -153,3 +153,15 @@ npm run rename:run -- --output-subfolder rename-complete "/media/queue"
 - `npm run logs:failures` shows only failure-causing entries from a run
 - `npm run style:check` runs lint + format checks
 - `npm run type-check` runs TypeScript checks
+
+### Architecture
+
+The project follows a strict layered architecture with barrel exports for standardization:
+
+- **Agents (`src/agents/`)**: CLI entry points.
+- **Services (`src/services/`)**: Core business logic and coordinate transformations.
+- **Repository (`src/repository/`)**: Data access (FS, TMDb).
+- **Config (`src/config/`)**: Environment and logging configuration.
+- **Types (`src/types/`)**: Shared TypeScript interfaces.
+
+Always import from the layer's barrel export (e.g., `import { ... } from '../services'`) rather than deep-linking into individual files to maintain clean boundaries.
