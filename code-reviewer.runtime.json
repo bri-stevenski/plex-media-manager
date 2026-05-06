@@ -1,0 +1,36 @@
+{
+  "name": "code-reviewer",
+  "skills": [
+    "harness-code-review"
+  ],
+  "steps": [
+    {
+      "command": "validate",
+      "when": "always"
+    },
+    {
+      "command": "check-deps",
+      "when": "always"
+    },
+    {
+      "command": "check-docs",
+      "when": "on_pr"
+    },
+    {
+      "command": "check-perf",
+      "when": "on_pr"
+    },
+    {
+      "skill": "harness-code-review",
+      "when": "on_pr",
+      "output": "auto"
+    },
+    {
+      "skill": "harness-code-review",
+      "when": "manual",
+      "output": "auto"
+    }
+  ],
+  "timeout": 600000,
+  "severity": "error"
+}
