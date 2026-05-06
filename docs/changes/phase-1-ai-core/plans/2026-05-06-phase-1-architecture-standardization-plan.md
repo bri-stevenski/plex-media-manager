@@ -151,10 +151,20 @@ Standardize the project architecture by enforcing strict Harness layering, imple
 
 **Depends on:** Task 10 | **Files:** `src/services/index.ts` | **Category:** integration
 
-1. Review if any logic in `agents` should be moved to `services` before the Unified Processor work starts.
-2. For now, ensure all service functions are properly exported as the official API for the service layer.
-3. Run: `harness validate`
-4. Commit: `chore: service layer API hardening`
+1. Review agent→service boundaries in `src/services/index.ts`.
+2. Apply decision matrix for logic moves:
+   - **Move to Service:** Stateful I/O, external API orchestration (TMDb), core business rules (metadata parsing/scoring), and file path construction.
+   - **Keep in Agent:** CLI argument parsing, environment loading, log level setting, and high-level process flow control.
+   - **Document:** Any shared utilities that reside in `repository` but are orchestrated by `services`.
+3. Success Criteria & Checklist:
+   - [ ] All stateful I/O and business rules are moved out of agents.
+   - [ ] All public service functions are re-exported from `src/services/index.ts`.
+   - [ ] Create `docs/changes/phase-1-ai-core/boundary.md` containing:
+     - Examples of moved functions.
+     - List of exported API surface.
+     - Diagram or description of the new boundary.
+4. Run: `harness validate`
+5. Commit: `chore: service layer API hardening`
 
 ### Task 12: Documentation Update (Integration)
 

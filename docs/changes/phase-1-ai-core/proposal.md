@@ -17,22 +17,22 @@ This phase focuses on establishing a robust, AI-readable foundation for the Plex
 
 ## Implementation Order
 
-### Phase 1: Architecture Standardization
+### Step 1: Architecture Standardization
 Refactor existing `src/` structure to ensure strict layer boundaries and eliminate any "leaky" abstractions. Ensure `harness check-deps` passes with zero warnings.
 <!-- complexity: low -->
 
-### Phase 2: Unified Media Processor
+### Step 2: Unified Media Processor
 Implement the core engine in `src/services/processor.ts` that handles directory recursion and delegates to specific media handlers.
 <!-- complexity: medium -->
 
-### Phase 3: Metadata & Naming Enhancement
+### Step 3: Metadata & Naming Enhancement
 Update `src/repository/tmdb.ts` and `src/services/formatter.ts` to include TMDb IDs and follow the Plex-compliant naming conventions.
 <!-- complexity: medium -->
 
-### Phase 4: Atomic Staging & Delivery
+### Step 4: Atomic Staging & Delivery
 Implement the staging pipeline in `src/repository/fs.ts` to move files through a `processing/` state before final organization.
 <!-- complexity: medium -->
 
-### Phase 5: Verification & Integration
+### Step 5: Verification & Integration
 Comprehensive end-to-end testing of the renaming pipeline for all media types.
 <!-- complexity: medium -->

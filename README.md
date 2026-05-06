@@ -159,7 +159,7 @@ npm run rename:run -- --output-subfolder rename-complete "/media/queue"
 The project follows a strict layered architecture with barrel exports for standardization:
 
 - **Agents (`src/agents/`)**: CLI entry points.
-- **Services (`src/services/`)**: Core business logic and coordinate transformations.
+- **Services (`src/services/`)**: Core business logic that coordinates and orchestrates data/operation transformations.
 - **Repository (`src/repository/`)**: Data access (FS, TMDb).
 - **Config (`src/config/`)**: Environment and logging configuration.
 - **Types (`src/types/`)**: Shared TypeScript interfaces.

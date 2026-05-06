@@ -65,7 +65,7 @@ last_manual_edit: 2026-05-06T17:28:43.206Z
 
 - **Status:** backlog
 - **Spec:** none
-- **Summary:** Develop connector for the NAS server hosting the Plex Docker container for automated media delivery.
+- **Summary:** Develop a connector for the NAS server hosting the Plex Docker container for automated media delivery.
 - **Blockers:** —
 - **Plan:** —
 
