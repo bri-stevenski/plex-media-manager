@@ -15,9 +15,22 @@ Plex Media Manager is a TypeScript-based CLI tool designed to automate the organ
 - **Logging:** Winston
 - **Engineering Standards:** Harness Engineering
 
-## Architecture (Intermediate Level)
+## Architecture (Advanced Level)
 
-The project follows a strict layered architecture. Violations of these boundaries will be flagged by `harness check-deps`.
+The project follows a strict layered architecture and uses the Advanced Harness adoption level, which includes persona-based agent interactions and automated state management.
+
+### Personas
+
+The following personas are configured for this project:
+- **Architecture Enforcer**: Validates layer boundaries and dependency rules.
+- **Code Reviewer**: Performs deep-dive reviews and addresses findings.
+- **Planner**: Breaks down complex requirements into executable phase plans.
+- **Task Executor**: Implements tasks with TDD and verification.
+- **Verifier**: Audits implementation against specifications.
+
+### State & Learnings
+- **State**: Persistent project state is stored in `.harness/`.
+- **Learnings**: Institutional knowledge is captured in `.harness/learnings/`.
 
 ### Layers
 

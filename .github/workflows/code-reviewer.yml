@@ -1,0 +1,25 @@
+name: Code Reviewer
+on:
+  pull_request:
+    paths:
+      - src/**
+      - packages/**
+  push:
+    branches:
+      - main
+      - develop
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: frozen
+      - run: npx harness validate --severity error
+      - run: npx harness check-deps --severity error
+      - run: npx harness check-docs --severity error
+      - run: npx harness check-perf --severity error

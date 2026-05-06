@@ -1,0 +1,20 @@
+{
+  "name": "architecture-enforcer",
+  "skills": [
+    "enforce-architecture",
+    "check-mechanical-constraints",
+    "harness-dependency-health"
+  ],
+  "steps": [
+    {
+      "command": "check-deps",
+      "when": "always"
+    },
+    {
+      "command": "validate",
+      "when": "always"
+    }
+  ],
+  "timeout": 300000,
+  "severity": "error"
+}
