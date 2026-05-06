@@ -7,4 +7,4 @@
 
 **Skills:** harness-code-review
 
-**When this agent flags an issue:** Fix violations before merging. Run `harness validate`, `harness check-deps`, `harness check-docs`, `harness check-perf`, `harness skill run harness-code-review`, `harness skill run harness-code-review` locally to validate.
+**When this agent flags an issue:** Fix violations before merging. Run `harness validate`, `harness check-deps`, `harness check-docs`, `harness check-perf`, and `harness skill run harness-code-review` locally to validate.

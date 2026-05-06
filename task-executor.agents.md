@@ -7,4 +7,4 @@
 
 **Skills:** harness-execution
 
-**When this agent flags an issue:** Fix violations before merging. Run `harness validate`, `harness check-deps`, `harness scan`, `harness skill run harness-execution`, `harness skill run harness-execution` locally to validate.
+**When this agent flags an issue:** Fix violations before merging. Run `harness validate`, `harness check-deps`, `harness scan`, and `harness skill run harness-execution` locally to validate.
