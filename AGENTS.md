@@ -34,7 +34,10 @@ The following personas are configured for this project:
 
 ### Layers
 
-1.  **Agents (`src/agents/`)**: CLI entry points.
+1.  **Agents (`src/agents/`)**: CLI entry points — three organizers:
+    - `cli-movies.ts` — TMDb-driven movie organizer
+    - `cli-tv.ts` — TMDb-driven TV show organizer
+    - `cli-music.ts` — Music organizer (MusicBrainz, stub)
     - Allowed imports: `services`, `repository`, `config`, `types`.
 2.  **Services (`src/services/`)**: Business logic (parsing, formatting).
     - Allowed imports: `repository`, `config`, `types`.
@@ -55,13 +58,20 @@ The following personas are configured for this project:
 
 ## Constraints & Forbidden Patterns
 
-- **No direct FS calls**: Avoid using `fs` or `fs/promises` directly in `services` or `agents`. Use the `repository/fs` wrapper.
+- **No direct FS calls**: Avoid using `fs` or `fs/promises` directly in `services` or `agents`. Use the `repository/fs` wrapper. _(Note: `cli-movies.ts` and `cli-tv.ts` currently violate this — direct `fs` import will be removed when both agents are refactored to delegate to `MediaProcessor`. See `docs/changes/phase-1-ai-core/plans/2026-05-12-unified-media-processor-plan.md`.)_
 - **No global state**: Keep renamer logic encapsulated in classes (e.g., `MoviesRenamer`).
 - **Circular Dependencies**: Strictly forbidden across and within layers.
 
 ## Commands
 
 - `npm run setup`: Full setup and build.
-- `npm run rename:run`: Run the movie renamer.
+- `npm run rename:run`: Run the unified media renamer (requires `src/agents/cli-media.ts` — planned).
+- `npm run start:movies`: Run the movies organizer (`cli-movies.ts`).
+- `npm run start:tv`: Run the TV show organizer (`cli-tv.ts`).
+- `npm run music:run`: Run the music organizer (`cli-music.ts`).
+- `npm run rename:dry-run`: Preview rename changes without moving files.
+- `npm run music:dry-run`: Preview music organize changes without moving files.
+- `npm run build`: Compile TypeScript.
+- `npm run build:executables`: Build standalone caxa executables for movies and music organizers.
 - `npm run validate`: Run Harness validation.
 - `harness check-deps`: Verify layer boundaries.
