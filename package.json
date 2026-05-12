@@ -32,9 +32,7 @@
     "music:run": "node dist/agents/cli-music.js",
     "music:dry-run": "node dist/agents/cli-music.js --dry-run --log-level DEBUG",
     "music:debug": "node dist/agents/cli-music.js --log-level DEBUG",
-    "music:pkg": "npm run music:build && pkg dist/agents/cli-music.js --compress Brotli --out-path bin/music",
-    "pkg:all": "npm run rename:pkg && npm run music:pkg",
-    "rename:pkg": "npm run rename:build && pkg dist/agents/cli-media.js --compress Brotli --out-path bin/media",
+    "build:executables": "node scripts/build-executables.js",
     "music:build": "tsc --project tsconfig.music.json",
     "music:setup": "npm run setup && npm run music:build",
     "docker:build": "docker compose build",
@@ -66,28 +64,16 @@
     "@types/react-dom": "18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
+    "esbuild": "^0.28.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "pkg": "5.8.0",
+    "postject": "^1.0.0-alpha.6",
     "prettier": "^3.8.1",
     "ts-node": "^10.9.2",
     "typescript": "latest"
-  },
-  "pkg": {
-    "scripts": [
-      "dist/**/*.js"
-    ],
-    "assets": [],
-    "targets": [
-      "node25-macos-x64",
-      "node25-macos-arm64",
-      "node25-windows-x64",
-      "node25-linux-x64"
-    ],
-    "outputPath": "bin"
   },
   "overrides": {
     "postcss": ">=8.5.10",
