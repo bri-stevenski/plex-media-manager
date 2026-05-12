@@ -5,15 +5,74 @@
   "level": "advanced",
   "design": {
     "enabled": true,
-    "platforms": ["web", "mobile"]
+    "platforms": [
+      "web",
+      "mobile"
+    ]
   },
   "architecture": {
     "layers": [
-      { "name": "agents", "path": "src/agents", "allowedImports": ["services", "repository", "config", "types"] },
-      { "name": "services", "path": "src/services", "allowedImports": ["repository", "config", "types"] },
-      { "name": "repository", "path": "src/repository", "allowedImports": ["config", "types"] },
-      { "name": "config", "path": "src/config", "allowedImports": ["types"] },
-      { "name": "types", "path": "src/types", "allowedImports": [] }
+      {
+        "name": "agents",
+        "path": "src/agents",
+        "allowedImports": [
+          "services",
+          "repository",
+          "config",
+          "types"
+        ]
+      },
+      {
+        "name": "services",
+        "path": "src/services",
+        "allowedImports": [
+          "repository",
+          "config",
+          "types"
+        ]
+      },
+      {
+        "name": "repository",
+        "path": "src/repository",
+        "allowedImports": [
+          "config",
+          "types"
+        ]
+      },
+      {
+        "name": "config",
+        "path": "src/config",
+        "allowedImports": [
+          "types"
+        ]
+      },
+      {
+        "name": "types",
+        "path": "src/types",
+        "allowedImports": []
+      }
     ]
+  },
+  "agentsMapPath": "./AGENTS.md",
+  "docsDir": "./docs",
+  "coworkers": [
+    {
+      "name": "oracle",
+      "path": "/Users/bs/Github/oracle-test-ai-agent",
+      "agentsMapPath": "./AGENTS.md",
+      "description": "AI-powered test automation. Delegates test authoring, review, framework selection, and flake detection to specialist oracle personas.",
+      "personas": [
+        "oracle-test-author",
+        "oracle-test-reviewer",
+        "oracle-framework-advisor",
+        "oracle-flake-hunter"
+      ]
+    }
+  ],
+  "telemetry": {
+    "enabled": true
+  },
+  "adoption": {
+    "enabled": true
   }
 }

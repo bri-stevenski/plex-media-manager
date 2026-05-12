@@ -48,5 +48,6 @@ The project follows a strict layered architecture enforced by Harness:
 *   **Strict Layering**: Do not violate the import boundaries defined in `harness.config.json`.
 *   **Logging**: Use the centralized logger from `src/config/logger.ts`. Avoid `console.log`.
 *   **Error Handling**: Use custom error classes (e.g., `TMDbError`) and ensure files are safely moved to `backups/` or `failed/` if processing fails.
+*   **PR Reviews**: Not required for merges as this is a single-contributor project. Findings from agents are informational.
 *   **Safe FS Operations**: Always use `safeMove` and `ensureDirectoryExists` from `src/repository/fs.ts` to prevent data loss.
 *   **Sidecar Files**: Ensure subtitle (`.srt`), metadata (`.nfo`), and other sidecar files are moved along with the main media file.

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "snapshots": [
+    {
+      "capturedAt": "2026-05-12T07:17:04.244Z",
+      "commitHash": "a9588ad1b1ff92f997bd081af8c104a50386b330",
+      "securityScore": 100,
+      "totalFindings": 0,
+      "bySeverity": {
+        "error": 0,
+        "warning": 0,
+        "info": 0
+      },
+      "byCategory": {},
+      "supplyChain": {
+        "critical": 0,
+        "high": 0,
+        "moderate": 0,
+        "low": 0,
+        "info": 0,
+        "total": 0
+      },
+      "suppressionCount": 0,
+      "findingIds": []
+    }
+  ],
+  "findingLifecycles": []
+}
