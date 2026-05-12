@@ -77,6 +77,14 @@ last_manual_edit: 2026-05-06T17:28:43.206Z
 - **Blockers:** —
 - **Plan:** —
 
+### Plex Server Upload Hook
+
+- **Status:** backlog
+- **Spec:** none
+- **Summary:** After media is processed and verified, automatically push files to the Plex server — trigger a Plex library scan or use the Plex API/upload endpoint to make content immediately available without manual intervention.
+- **Blockers:** NAS & Docker Integration (library path must be accessible before upload hook can target it)
+- **Plan:** —
+
 ### Cloud Sync/Remote Upload
 
 - **Status:** backlog
