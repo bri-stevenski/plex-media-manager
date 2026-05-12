@@ -21,8 +21,9 @@
 import { execSync, execFileSync } from 'child_process';
 import { resolve, join } from 'path';
 import { existsSync, mkdirSync, copyFileSync, rmSync, writeFileSync } from 'fs';
+import { fileURLToPath } from 'url';
 
-const projectRoot = resolve(new URL('.', import.meta.url).pathname, '..');
+const projectRoot = resolve(fileURLToPath(import.meta.url), '..', '..');
 const binDir = join(projectRoot, 'bin');
 const buildDir = join(projectRoot, '.sea-build');
 
@@ -96,7 +97,7 @@ for (const tool of tools) {
       disableExperimentalSEAWarning: true,
     })
   );
-  run(`node --experimental-sea-config ${seaConfig}`);
+  runFile(nodeBin, ['--experimental-sea-config', seaConfig]);
 
   // 3. Copy node binary
   console.log('  Copying node binary...');
@@ -106,7 +107,7 @@ for (const tool of tools) {
   if (isMac) {
     console.log('  Removing existing signature (macOS)...');
     try {
-      run(`codesign --remove-signature ${outBin}`, { stdio: 'pipe' });
+      execFileSync('codesign', ['--remove-signature', outBin], { stdio: 'pipe' });
     } catch {
       // may fail if binary is not signed — that's fine
     }
@@ -127,7 +128,7 @@ for (const tool of tools) {
   // 6. macOS: ad-hoc re-sign
   if (isMac) {
     console.log('  Re-signing binary (macOS)...');
-    run(`codesign --sign - ${outBin}`);
+    execFileSync('codesign', ['--sign', '-', outBin], { stdio: 'inherit' });
   }
 
   console.log(`  Done: bin/${tool.outDir}/${tool.outName}`);
