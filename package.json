@@ -50,16 +50,16 @@
     "dotenv": "^17.3.1",
     "harness-engineering": "^2.0.0",
     "luxon": "^3.7.2",
-    "next": "15.5.15",
+    "next": "^15.5.18",
     "p-limit": "^7.3.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "winston": "^3.14.2"
   },
   "devDependencies": {
-    "@harness-engineering/cli": "latest",
-    "@harness-engineering/core": "latest",
-    "@harness-engineering/eslint-plugin": "latest",
+    "@harness-engineering/cli": "^2.3.0",
+    "@harness-engineering/core": "^0.24.0",
+    "@harness-engineering/eslint-plugin": "^0.3.0",
     "@types/luxon": "^3.7.1",
     "@types/node": "^25.3.0",
     "@types/react": "18.3.1",
@@ -88,5 +88,9 @@
       "node25-linux-x64"
     ],
     "outputPath": "bin"
+  },
+  "overrides": {
+    "postcss": ">=8.5.10",
+    "@anthropic-ai/sdk": ">=0.91.1"
   }
 }
