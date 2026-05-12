@@ -49,6 +49,14 @@ last_manual_edit: 2026-05-06T17:28:43.206Z
 - **Blockers:** —
 - **Plan:** —
 
+### Branch Protection & Security Ruleset
+
+- **Status:** planned
+- **Spec:** none
+- **Summary:** Configure GitHub branch protection rules and security rulesets for `main` — require PRs, enforce status checks, and prevent direct pushes. Prompted by commits bypassing protection during oracle integration.
+- **Blockers:** —
+- **Plan:** —
+
 ## Phase 2: Desktop Interface
 
 ### Cross-Platform Desktop UI
