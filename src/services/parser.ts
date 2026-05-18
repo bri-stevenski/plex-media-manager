@@ -18,6 +18,39 @@ import {
 import type { MediaInfo } from '../types';
 
 /**
+ * Quality and release format tags to be removed from filenames.
+ */
+const QUALITY_TAGS_PATTERNS = [
+  /\s*\[?(?:1080p|720p|480p|2160p|4k|UHD)\]?\s*/gi,
+  /\s*\[?(?:WEB[-\s]?DL|WEB|BluRay|BLURAY|BRRip|DVDRip|HDRip)\]?\s*/gi,
+  /\s*\[?(?:x264|x265|h\.?264|h\.?265)\]?\s*/gi,
+  /\s*\[?(?:AMZN|NF|NETFLIX|HBO|HULU|DSNP)\]?\s*/gi,
+  /\s*\[?(?:AAC|AC3|DDP?\d*\.?\d*)\]?\s*/gi,
+  /\s*\[?(?:NTb|ELiTE|GalaxyTV|UTR|FLUX|EVO)\]?\s*/gi,
+];
+
+/**
+ * Common noisy patterns in TV show directory or filenames.
+ */
+const TV_NOISE_PATTERNS = [
+  /\bS\d{1,2}E\d{1,2}\b/gi,
+  /\bSEASONS?\s+\d{1,2}(?:\s*[-/]\s*\d{1,2})?(?:\s+\d{1,2})*\b/gi,
+  /\bS\d{1,2}(?:\s*[-/]\s*S?\d{1,2})?\b/gi,
+  /\b(1080p|720p|480p|2160p|4k)\b/gi,
+  /\b(WEB[-\s]?DL|BluRay|DVDRip|WEBRip)\b/gi,
+  /\b(x264|x265|h264|h265)\b/gi,
+  /\b(DDP?\d*\.?\d*|AAC|AC3)\b/gi,
+  /\b(AMZN|NF|HBO|HULU)\b/gi,
+  /\b(NTb|ELiTE|GalaxyTV)\b/gi,
+  /\b(REPACK|PROPER|RERIP|READNFO|INTERNAL)\b/gi,
+  /\b(EXTRAS?|BONUS)\b/gi,
+  /\[[^\]]+\]/g,
+  /\{[^}]+\}/g,
+  /\b(COMPLETE|Series)\b/gi,
+  /\b(19|20)\d{2}\b/g,
+];
+
+/**
  * Normalize text by replacing common separators and removing extra whitespace.
  */
 function normalizeText(text: string): string {
@@ -235,13 +268,9 @@ function guessTitleAndYearFromStem(stem: string): [string, number | null] {
 }
 
 /**
- * Extract episode title from a TV show filename stem.
+ * Remove quality and release format tags from a filename stem.
  */
-function extractEpisodeTitleFromFilename(stem: string): string | null {
-  // OPTIMIZATION: Strip quality formats first before any extraction
-  let cleaned = stem;
-
-  // Remove common quality/release formats first
+function cleanStemFromQualityTags(stem: string): string {
   const qualityPatterns = [
     /\s*\[?(?:1080p|720p|480p|2160p|4k|UHD)\]?\s*/gi,
     /\s*\[?(?:WEB[-\s]?DL|WEB|BluRay|BLURAY|BRRip|DVDRip|HDRip)\]?\s*/gi,
@@ -251,29 +280,31 @@ function extractEpisodeTitleFromFilename(stem: string): string | null {
     /\s*\[?(?:NTb|ELiTE|GalaxyTV|UTR|FLUX|EVO)\]?\s*/gi,
   ];
 
+  let cleaned = stem;
   for (const pattern of qualityPatterns) {
     cleaned = cleaned.replace(pattern, ' ');
   }
 
-  // Clean up extra spaces from removal
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
 
-  // Try patterns on cleaned string first
-  const patternsOriginal = [
+/**
+ * Try to match episode title using original (cleaned) stem.
+ */
+function matchEpisodeTitleOriginal(cleaned: string): string | null {
+  const patterns = [
     /[Ss]\d{1,2}[Ee]\d{1,2}\s*[-_\u2013\u2014]\s*(.+)$/,
     /.+\s*\d{4}[-_.]\d{1,2}[-_.]\d{1,2}\s*[-_\u2013\u2014]\s*(.+)$/,
     /.+\s*\d{1,2}[-_.]\d{1,2}[-_.]\d{4}\s*[-_\u2013\u2014]\s*(.+)$/,
   ];
 
-  for (const pattern of patternsOriginal) {
+  for (const pattern of patterns) {
     const match = pattern.exec(cleaned);
     if (match) {
       let titleCandidate = match[1].trim().replace(/[-_]/g, '');
 
-      // Remove parenthetical quality info
+      // Remove parenthetical and bracketed info
       titleCandidate = titleCandidate.replace(/\s*\([^)]*\)/g, '').trim();
-
-      // Remove bracketed info
       titleCandidate = titleCandidate.replace(/\s*\[[^\]]*\]/g, '').trim();
 
       // Clean up excessive whitespace
@@ -288,15 +319,21 @@ function extractEpisodeTitleFromFilename(stem: string): string | null {
       }
     }
   }
+  return null;
+}
 
+/**
+ * Try to match episode title using normalized stem.
+ */
+function matchEpisodeTitleNormalized(cleaned: string): string | null {
   const s = normalizeText(cleaned);
-  const patternsNormalized = [
+  const patterns = [
     /[Ss]\d{1,2}[Ee]\d{1,2}\s+(.+)$/,
     /(.+)\s*[-_\u2013\u2014]\s*[Ss]\d{1,2}[Ee]\d{1,2}$/,
     /(.+)\s*[Ss]\d{1,2}[Ee]\d{1,2}$/,
   ];
 
-  for (const pattern of patternsNormalized) {
+  for (const pattern of patterns) {
     const match = pattern.exec(s);
     if (match) {
       let titleCandidate = match[1].trim();
@@ -314,11 +351,151 @@ function extractEpisodeTitleFromFilename(stem: string): string | null {
       }
     }
   }
-
   return null;
 }
 
+/**
+ * Extract episode title from a TV show filename stem.
+ */
+function extractEpisodeTitleFromFilename(stem: string): string | null {
+  const cleaned = cleanStemFromQualityTags(stem);
 
+  const originalMatch = matchEpisodeTitleOriginal(cleaned);
+  if (originalMatch) {
+    return originalMatch;
+  }
+
+  return matchEpisodeTitleNormalized(cleaned);
+}
+
+/**
+ * Clean up show directory name by removing noisy patterns.
+ */
+function cleanShowTitle(showDir: string): string {
+  let title = showDir.replace(/\s*\([^)]*\)/g, '').trim();
+  title = title.replace(/\[.*?\]/g, '').trim();
+  title = title.replace(/\s*\{[a-z0-9\-:]+\}/g, '').trim();
+
+  const noisyPatterns = [
+    /\bS\d{1,2}E\d{1,2}\b/gi,
+    /\bSEASONS?\s+\d{1,2}(?:\s*[-/]\s*\d{1,2})?(?:\s+\d{1,2})*\b/gi,
+    /\bS\d{1,2}(?:\s*[-/]\s*S?\d{1,2})?\b/gi,
+    /\b(1080p|720p|480p|2160p|4k)\b/gi,
+    /\b(WEB[-\s]?DL|BluRay|DVDRip|WEBRip)\b/gi,
+    /\b(x264|x265|h264|h265)\b/gi,
+    /\b(DDP?\d*\.?\d*|AAC|AC3)\b/gi,
+    /\b(AMZN|NF|HBO|HULU)\b/gi,
+    /\b(NTb|ELiTE|GalaxyTV)\b/gi,
+    /\b(REPACK|PROPER|RERIP|READNFO|INTERNAL)\b/gi,
+    /\b(EXTRAS?|BONUS)\b/gi,
+    /\[[^\]]+\]/g,
+    /\{[^}]+\}/g,
+    /\b(COMPLETE|Series)\b/gi,
+    /\b(19|20)\d{2}\b/g,
+  ];
+
+  for (const pattern of noisyPatterns) {
+    title = title.replace(pattern, ' ');
+  }
+
+  title = title.replace(/[._+-]/g, ' ');
+  return title.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Parse a TV media file and extract metadata.
+ */
+function parseTvMedia(
+  filepath: string,
+  stem: string,
+  seasonFromFilename: number | null,
+  episodeFromFilename: number | null,
+  dateStr: string | null,
+  dateYear: number | null,
+): MediaInfo {
+  const pathParts = path.normalize(filepath).split(path.sep);
+  let showDir: string | null = null;
+
+  for (let i = 0; i < pathParts.length; i++) {
+    if (pathParts[i]?.toLowerCase() === 'tv shows' && i + 1 < pathParts.length) {
+      showDir = pathParts[i + 1];
+      break;
+    }
+  }
+
+  if (!showDir) {
+    showDir = inferShowDirectoryFromPath(filepath);
+  }
+
+  let yearFromDir: number | null = null;
+  if (showDir) {
+    const yearMatch = /\((\d{4})\)/.exec(showDir);
+    if (yearMatch) {
+      yearFromDir = parseInt(yearMatch[1]);
+    }
+  }
+
+  const showTitle = cleanShowTitle(showDir || inferShowDirectoryFromPath(filepath));
+  const episodeTitle = extractEpisodeTitleFromFilename(stem);
+
+  let season = seasonFromFilename;
+  if (season === null && dateStr !== null) {
+    season = parseSeasonFromPath(filepath);
+  }
+
+  let year = yearFromDir;
+  if (!year && dateYear) {
+    year = dateYear;
+  }
+
+  return {
+    content_type: CONTENT_TYPE_TV,
+    title: showTitle,
+    year,
+    season,
+    episode: episodeFromFilename,
+    episode_title: episodeTitle,
+    date_str: dateStr,
+  };
+}
+
+/**
+ * Parse a movie media file and extract metadata.
+ */
+function parseMovieMedia(filepath: string, stem: string): MediaInfo {
+  const [titleFromStem, yearFromStem] = guessTitleAndYearFromStem(stem);
+  const movieDirInfo = parseMovieDirectoryFromPath(filepath);
+
+  let title = titleFromStem;
+  let year = yearFromStem;
+
+  if (movieDirInfo) {
+    const [dirTitle, dirYear] = movieDirInfo;
+    const normalizedStemTitle = normalizeForComparison(titleFromStem);
+    const normalizedDirTitle = normalizeForComparison(dirTitle);
+
+    const yearsCompatible = !yearFromStem || !dirYear || yearFromStem === dirYear;
+    const stemContainsFolderTitle =
+      normalizedDirTitle.length >= 4 && normalizedStemTitle.includes(normalizedDirTitle);
+
+    if (!titleFromStem || (yearsCompatible && stemContainsFolderTitle)) {
+      title = dirTitle;
+      year = dirYear ?? yearFromStem;
+    } else if (!year && dirYear) {
+      year = dirYear;
+    }
+  }
+
+  return {
+    content_type: CONTENT_TYPE_MOVIES,
+    title,
+    year,
+    season: null,
+    episode: null,
+    episode_title: null,
+    date_str: null,
+  };
+}
 
 /**
  * Parse a media file and extract all relevant metadata.
@@ -327,131 +504,22 @@ export function parseMediaFile(filepath: string): MediaInfo {
   const stem = path.basename(filepath, path.extname(filepath));
   const filename = path.basename(filepath);
 
-  // Check if it's in a Movies folder (strong indicator it's a movie)
   const isInMoviesFolder = /\bmovies?\b/i.test(filepath);
-
-  // Check if it's a TV show by looking for season/episode or date-based patterns
   const [seasonFromFilename, episodeFromFilename] = parseTvFilename(filename);
   const [dateStr, dateYear] = parseDateInFilename(filename);
   const isSeasonBasedTv = seasonFromFilename !== null && episodeFromFilename !== null;
   const isDateBasedTv = dateStr !== null;
 
-  // Movies in Movies folders take precedence over ambiguous patterns
   if ((isSeasonBasedTv || isDateBasedTv) && !isInMoviesFolder) {
-    // TV Show
-    const pathParts = path.normalize(filepath).split(path.sep);
-    let showDir: string | null = null;
-
-    // Find the TV Shows directory and take the next part
-    for (let i = 0; i < pathParts.length; i++) {
-      if (pathParts[i]?.toLowerCase() === 'tv shows' && i + 1 < pathParts.length) {
-        showDir = pathParts[i + 1];
-        break;
-      }
-    }
-
-    if (!showDir) {
-      showDir = inferShowDirectoryFromPath(filepath);
-    }
-
-    // Extract year from show directory
-    let yearFromDir: number | null = null;
-    if (showDir) {
-      const yearMatch = /\((\d{4})\)/.exec(showDir);
-      if (yearMatch) {
-        yearFromDir = parseInt(yearMatch[1]);
-      }
-    }
-
-    // Clean up show directory name
-    let showTitle = showDir || inferShowDirectoryFromPath(filepath);
-    showTitle = showTitle.replace(/\s*\([^)]*\)/g, '').trim();
-    showTitle = showTitle.replace(/\[.*?\]/g, '').trim();
-    showTitle = showTitle.replace(/\s*\{[a-z0-9\-:]+\}/g, '').trim();
-
-    // Remove noisy patterns
-    const noisyPatterns = [
-      /\bS\d{1,2}E\d{1,2}\b/gi,
-      /\bSEASONS?\s+\d{1,2}(?:\s*[-/]\s*\d{1,2})?(?:\s+\d{1,2})*\b/gi,
-      /\bS\d{1,2}(?:\s*[-/]\s*S?\d{1,2})?\b/gi,
-      /\b(1080p|720p|480p|2160p|4k)\b/gi,
-      /\b(WEB[-\s]?DL|BluRay|DVDRip|WEBRip)\b/gi,
-      /\b(x264|x265|h264|h265)\b/gi,
-      /\b(DDP?\d*\.?\d*|AAC|AC3)\b/gi,
-      /\b(AMZN|NF|HBO|HULU)\b/gi,
-      /\b(NTb|ELiTE|GalaxyTV)\b/gi,
-      /\b(REPACK|PROPER|RERIP|READNFO|INTERNAL)\b/gi,
-      /\b(EXTRAS?|BONUS)\b/gi,
-      /\[[^\]]+\]/g,
-      /\{[^}]+\}/g,
-      /\b(COMPLETE|Series)\b/gi,
-      /\b(19|20)\d{2}\b/g,
-    ];
-
-    for (const pattern of noisyPatterns) {
-      showTitle = showTitle.replace(pattern, ' ');
-    }
-
-    showTitle = showTitle.replace(/[._+-]/g, ' ');
-    showTitle = showTitle.replace(/\s+/g, ' ').trim();
-
-    const episodeTitle = extractEpisodeTitleFromFilename(stem);
-
-    let season = seasonFromFilename;
-    if (season === null && isDateBasedTv) {
-      season = parseSeasonFromPath(filepath);
-    }
-
-    const episode = episodeFromFilename;
-
-    let year = yearFromDir;
-    if (!year && dateYear) {
-      year = dateYear;
-    }
-
-    return {
-      content_type: CONTENT_TYPE_TV,
-      title: showTitle,
-      year,
-      season,
-      episode,
-      episode_title: episodeTitle,
-      date_str: dateStr,
-    };
+    return parseTvMedia(
+      filepath,
+      stem,
+      seasonFromFilename,
+      episodeFromFilename,
+      dateStr,
+      dateYear,
+    );
   } else {
-    // Movie
-    const [titleFromStem, yearFromStem] = guessTitleAndYearFromStem(stem);
-    const movieDirInfo = parseMovieDirectoryFromPath(filepath);
-
-    let title = titleFromStem;
-    let year = yearFromStem;
-
-    if (movieDirInfo) {
-      const [dirTitle, dirYear] = movieDirInfo;
-      const normalizedStemTitle = normalizeForComparison(titleFromStem);
-      const normalizedDirTitle = normalizeForComparison(dirTitle);
-
-      const yearsCompatible = !yearFromStem || !dirYear || yearFromStem === dirYear;
-      const stemContainsFolderTitle =
-        normalizedDirTitle.length >= 4 && normalizedStemTitle.includes(normalizedDirTitle);
-
-      // Prefer structured folder titles when filename appears to add noisy descriptors.
-      if (!titleFromStem || (yearsCompatible && stemContainsFolderTitle)) {
-        title = dirTitle;
-        year = dirYear ?? yearFromStem;
-      } else if (!year && dirYear) {
-        year = dirYear;
-      }
-    }
-
-    return {
-      content_type: CONTENT_TYPE_MOVIES,
-      title,
-      year,
-      season: null,
-      episode: null,
-      episode_title: null,
-      date_str: null,
-    };
+    return parseMovieMedia(filepath, stem);
   }
 }

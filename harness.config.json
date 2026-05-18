@@ -51,6 +51,27 @@
         "path": "src/types",
         "allowedImports": []
       }
+    ],
+    "exclude": [
+      "node_modules/**",
+      "dist/**",
+      "coverage/**"
+    ]
+  },
+  "performance": {
+    "enabled": true,
+    "entryPoints": [
+      "src/agents/cli-movies.ts",
+      "src/agents/cli-tv.ts",
+      "src/agents/cli-music.ts"
+    ]
+  },
+  "entropy": {
+    "enabled": true,
+    "entryPoints": [
+      "src/agents/cli-movies.ts",
+      "src/agents/cli-tv.ts",
+      "src/agents/cli-music.ts"
     ]
   },
   "agentsMapPath": "./AGENTS.md",

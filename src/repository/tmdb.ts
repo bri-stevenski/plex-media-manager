@@ -56,13 +56,7 @@ export class TMDbClient {
     this.tvShowSearchCache = new Map();
   }
 
-  private async makeRequest(
-    endpoint: string,
-    params?: Record<string, any>,
-  ): Promise<Record<string, any>> {
-    const url = `/${endpoint.replace(/^\//, '')}`;
-
-    // Rate limiting: ensure minimum interval between requests
+  private async enforceRateLimit(): Promise<void> {
     const timeSinceLastRequest = Date.now() - this.lastRequestTime;
     if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
       await new Promise((resolve) =>
@@ -70,48 +64,66 @@ export class TMDbClient {
       );
     }
     this.lastRequestTime = Date.now();
+  }
 
-    // Retry logic for transient failures
+  private isRetryableError(error: any): boolean {
+    return (
+      axios.isAxiosError(error) &&
+      (error.code === 'ECONNABORTED' || // Timeout
+        error.code === 'ECONNREFUSED' || // Connection refused
+        error.code === 'ETIMEDOUT' || // Timeout
+        error.response?.status === 429 || // Rate limit
+        error.response?.status === 500 || // Server error
+        error.response?.status === 502 || // Bad gateway
+        error.response?.status === 503) // Service unavailable
+    );
+  }
+
+  private async performRequest(
+    url: string,
+    params?: Record<string, any>,
+    attempt: number = 1,
+  ): Promise<Record<string, any>> {
+    logger.debug(`TMDb API request: ${url} (attempt ${attempt}/${this.MAX_RETRIES})`);
+    if (params) {
+      const safeParams = { ...params };
+      delete safeParams.api_key;
+      logger.debug(`Request params: ${JSON.stringify(safeParams)}`);
+    }
+
+    const response = await this.session.get(url, { params });
+    const data = response.data;
+
+    if (data.success === false) {
+      logger.error(`TMDb API error: ${data.status_message || 'Unknown error'}`);
+      throw new TMDbAPIError(`TMDb API error: ${data.status_message || 'Unknown error'}`);
+    }
+
+    if (data.results) {
+      logger.debug(`TMDb response: ${data.results.length} results found`);
+    } else {
+      logger.debug('TMDb response: success');
+    }
+
+    return data;
+  }
+
+  private async makeRequest(
+    endpoint: string,
+    params?: Record<string, any>,
+  ): Promise<Record<string, any>> {
+    const url = `/${endpoint.replace(/^\//, '')}`;
+
+    await this.enforceRateLimit();
+
     let lastError: any;
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        logger.debug(`TMDb API request: ${url} (attempt ${attempt}/${this.MAX_RETRIES})`);
-        if (params) {
-          const safeParams = { ...params };
-          delete safeParams.api_key;
-          logger.debug(`Request params: ${JSON.stringify(safeParams)}`);
-        }
-
-        const response = await this.session.get(url, { params });
-        const data = response.data;
-
-        if (data.success === false) {
-          logger.error(`TMDb API error: ${data.status_message || 'Unknown error'}`);
-          throw new TMDbAPIError(`TMDb API error: ${data.status_message || 'Unknown error'}`);
-        }
-
-        if (data.results) {
-          logger.debug(`TMDb response: ${data.results.length} results found`);
-        } else {
-          logger.debug('TMDb response: success');
-        }
-
-        return data;
+        return await this.performRequest(url, params, attempt);
       } catch (error) {
         lastError = error;
 
-        // Check if error is retryable (timeout, connection error, 429 rate limit)
-        const isRetryable =
-          axios.isAxiosError(error) &&
-          (error.code === 'ECONNABORTED' || // Timeout
-            error.code === 'ECONNREFUSED' || // Connection refused
-            error.code === 'ETIMEDOUT' || // Timeout
-            error.response?.status === 429 || // Rate limit
-            error.response?.status === 500 || // Server error
-            error.response?.status === 502 || // Bad gateway
-            error.response?.status === 503); // Service unavailable
-
-        if (!isRetryable || attempt === this.MAX_RETRIES) {
+        if (!this.isRetryableError(error) || attempt === this.MAX_RETRIES) {
           if (axios.isAxiosError(error)) {
             logger.error(`TMDb request failed: ${error.message}`);
             throw new TMDbAPIError(`Request failed: ${error.message}`);
@@ -119,8 +131,7 @@ export class TMDbClient {
           throw error;
         }
 
-        // Wait before retrying
-        const delayMs = this.RETRY_DELAY * attempt; // Exponential backoff
+        const delayMs = this.RETRY_DELAY * attempt;
         logger.warning(
           `TMDb request failed (attempt ${attempt}): ${error instanceof Error ? error.message : String(error)}. Retrying in ${delayMs}ms...`,
         );
@@ -215,6 +226,48 @@ export class TMDbClient {
     return this.makeRequest(`tv/${tmdbId}`);
   }
 
+  private async searchEpisodeInSeason(
+    tmdbId: number,
+    seasonNumber: number,
+    episodeTitle: string,
+  ): Promise<number | null> {
+    try {
+      const seasonData = await this.makeRequest(`tv/${tmdbId}/season/${seasonNumber}`);
+      const episodes = seasonData.episodes || [];
+
+      for (const episode of episodes) {
+        if (episode.name?.toLowerCase() === episodeTitle.toLowerCase()) {
+          return episode.episode_number;
+        }
+      }
+    } catch (error) {
+      logger.warning(`Failed to search season ${seasonNumber}: ${error}`);
+    }
+    return null;
+  }
+
+  private async searchEpisodeAcrossSeasons(
+    tmdbId: number,
+    episodeTitle: string,
+  ): Promise<{ seasonNumber: number; episodeNumber: number } | null> {
+    const tvData = await this.getTvShowDetails(tmdbId);
+    const seasons = tvData.seasons || [];
+
+    const recentSeasons = seasons
+      .filter((s: any) => (s.season_number || 0) > 0)
+      .sort((a: any, b: any) => (b.season_number || 0) - (a.season_number || 0))
+      .slice(0, 5);
+
+    for (const season of recentSeasons) {
+      const seasonNum = season.season_number;
+      const episodeNum = await this.searchEpisodeInSeason(tmdbId, seasonNum, episodeTitle);
+      if (episodeNum !== null) {
+        return { seasonNumber: seasonNum, episodeNumber: episodeNum };
+      }
+    }
+    return null;
+  }
+
   async getTvEpisodeDetails(
     tmdbId: number,
     seasonNumber: number,
@@ -224,73 +277,30 @@ export class TMDbClient {
     let finalSeasonNumber = seasonNumber;
     let finalEpisodeNumber = episodeNumber;
 
-    if (episodeTitle && episodeTitle !== '') {
+    if (episodeTitle) {
       logger.debug(`Getting episode details for show ID ${tmdbId} with title '${episodeTitle}'`);
 
-      try {
-        const seasonData = await this.makeRequest(`tv/${tmdbId}/season/${seasonNumber}`);
-        const episodes = seasonData.episodes || [];
+      const inSeasonResult = await this.searchEpisodeInSeason(tmdbId, seasonNumber, episodeTitle);
+      if (inSeasonResult !== null) {
+        finalEpisodeNumber = inSeasonResult;
+        logger.debug(`Found episode '${episodeTitle}' as S${seasonNumber}E${finalEpisodeNumber}`);
+      } else {
+        logger.error(
+          `Episode titled '${episodeTitle}' not found in season ${seasonNumber} of show ID ${tmdbId}, searching other seasons...`,
+        );
 
-        let found = false;
-        for (const episode of episodes) {
-          if (episode.name?.toLowerCase() === episodeTitle.toLowerCase()) {
-            finalEpisodeNumber = episode.episode_number;
-            logger.debug(
-              `Found episode '${episodeTitle}' as S${seasonNumber}E${finalEpisodeNumber}`,
-            );
-            found = true;
-            break;
-          }
-        }
-
-        if (!found) {
-          logger.error(
-            `Episode titled '${episodeTitle}' not found in season ${seasonNumber} of show ID ${tmdbId}, searching other seasons...`,
+        const acrossSeasonsResult = await this.searchEpisodeAcrossSeasons(tmdbId, episodeTitle);
+        if (acrossSeasonsResult) {
+          finalSeasonNumber = acrossSeasonsResult.seasonNumber;
+          finalEpisodeNumber = acrossSeasonsResult.episodeNumber;
+          logger.debug(
+            `Found episode '${episodeTitle}' as S${finalSeasonNumber}E${finalEpisodeNumber}`,
           );
-
-          const tvData = await this.getTvShowDetails(tmdbId);
-          const seasons = tvData.seasons || [];
-
-          // Limit search to recent seasons to avoid excessive API calls
-          // Search in reverse chronological order (most recent first)
-          const recentSeasons = seasons
-            .filter((s: any) => (s.season_number || 0) > 0) // Skip season 0 (specials) unless specifically requested
-            .sort((a: any, b: any) => (b.season_number || 0) - (a.season_number || 0))
-            .slice(0, 5); // Limit to last 5 seasons
-
-          for (const season of recentSeasons) {
-            const seasonNum = season.season_number;
-            try {
-              const seasonDataSearch = await this.makeRequest(`tv/${tmdbId}/season/${seasonNum}`);
-              const episodesSearch = seasonDataSearch.episodes || [];
-
-              for (const episode of episodesSearch) {
-                if (episode.name?.toLowerCase() === episodeTitle.toLowerCase()) {
-                  finalEpisodeNumber = episode.episode_number;
-                  finalSeasonNumber = seasonNum;
-                  logger.debug(
-                    `Found episode '${episodeTitle}' as S${finalSeasonNumber}E${finalEpisodeNumber}`,
-                  );
-                  found = true;
-                  break;
-                }
-              }
-
-              if (found) break;
-            } catch (seasonError) {
-              logger.warning(`Failed to search season ${seasonNum}: ${seasonError}`);
-              // Continue searching other seasons
-            }
-          }
-
-          if (!found) {
-            logger.warning(
-              `Episode titled '${episodeTitle}' not found in any recent season of show ID ${tmdbId}`,
-            );
-          }
+        } else {
+          logger.warning(
+            `Episode titled '${episodeTitle}' not found in any recent season of show ID ${tmdbId}`,
+          );
         }
-      } catch (error) {
-        logger.error(`Error searching for episode by title: ${error}`);
       }
     }
 
@@ -301,7 +311,6 @@ export class TMDbClient {
       `tv/${tmdbId}/season/${finalSeasonNumber}/episode/${finalEpisodeNumber}`,
     );
 
-    // Include the corrected season and episode numbers in the response
     episodeData.season_number = finalSeasonNumber;
     episodeData.episode_number = finalEpisodeNumber;
 
@@ -314,7 +323,6 @@ export class TMDbClient {
     if (results.length === 0) {
       logger.warning(`No TMDb results found for movie: '${title}' (${year || 'any year'})`);
 
-      // Try alternative search without year
       if (year) {
         logger.info(`Retrying movie search without year filter: '${title}'`);
         results = await this.searchMovie(title);
@@ -464,7 +472,6 @@ export class TMDbClient {
     if (results.length === 0) {
       logger.warning(`No TMDb results found for TV show: '${title}' (${year || 'any year'})`);
 
-      // Try alternative search strategies
       const alternativeTitles = [
         title.replace(' US', ''),
         title.replace(' (US)', ''),
@@ -488,7 +495,6 @@ export class TMDbClient {
         }
       }
 
-      // Try without year filter
       if (year) {
         logger.info(`Retrying TV search without year filter: '${title}'`);
         results = await this.searchTvShow(title);
@@ -505,7 +511,6 @@ export class TMDbClient {
       return null;
     }
 
-    // If we have a year, prefer exact year matches
     if (year) {
       const exactMatches = results.filter((r) => (r.first_air_date || '').startsWith(String(year)));
       if (exactMatches.length > 0) {
@@ -515,7 +520,6 @@ export class TMDbClient {
       }
     }
 
-    // Return the first (highest rated) result
     const result = results[0];
     logger.info(`Using best match: '${result.name}' (${result.first_air_date}) - ID: ${result.id}`);
     return result;
@@ -536,6 +540,34 @@ export class TMDbClient {
     return null;
   }
 
+  private sortSeasonsByTargetYear(
+    seasons: Array<Record<string, any>>,
+    targetYear: number,
+  ): Array<Record<string, any>> {
+    return [...seasons].sort((a, b) => {
+      const seasonANumber = Number(a.season_number);
+      const seasonBNumber = Number(b.season_number);
+
+      const seasonAYear =
+        typeof a.air_date === 'string' ? parseInt(a.air_date.substring(0, 4)) : NaN;
+      const seasonBYear =
+        typeof b.air_date === 'string' ? parseInt(b.air_date.substring(0, 4)) : NaN;
+
+      const priorityA = Number.isNaN(seasonAYear)
+        ? Number.MAX_SAFE_INTEGER
+        : Math.abs(seasonAYear - targetYear);
+      const priorityB = Number.isNaN(seasonBYear)
+        ? Number.MAX_SAFE_INTEGER
+        : Math.abs(seasonBYear - targetYear);
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      return seasonANumber - seasonBNumber;
+    });
+  }
+
   async getEpisodeByAirDate(tmdbId: number, airDate: string): Promise<Record<string, any> | null> {
     const normalizedAirDate = this.normalizeAirDate(airDate);
     if (!normalizedAirDate) {
@@ -552,58 +584,22 @@ export class TMDbClient {
         : [];
       const targetYear = parseInt(normalizedAirDate.substring(0, 4));
 
-      const orderedSeasons = seasons
-        .filter((season) => typeof season.season_number === 'number')
-        .sort((a, b) => {
-          const seasonANumber = Number(a.season_number);
-          const seasonBNumber = Number(b.season_number);
-
-          const seasonAYear =
-            typeof a.air_date === 'string' ? parseInt(a.air_date.substring(0, 4)) : NaN;
-          const seasonBYear =
-            typeof b.air_date === 'string' ? parseInt(b.air_date.substring(0, 4)) : NaN;
-
-          const priorityA = Number.isNaN(seasonAYear)
-            ? Number.MAX_SAFE_INTEGER
-            : Math.abs(seasonAYear - targetYear);
-          const priorityB = Number.isNaN(seasonBYear)
-            ? Number.MAX_SAFE_INTEGER
-            : Math.abs(seasonBYear - targetYear);
-
-          if (priorityA !== priorityB) {
-            return priorityA - priorityB;
-          }
-
-          return seasonANumber - seasonBNumber;
-        });
+      const orderedSeasons = this.sortSeasonsByTargetYear(
+        seasons.filter((s) => typeof s.season_number === 'number'),
+        targetYear,
+      );
 
       for (const season of orderedSeasons) {
         const seasonNumber = Number(season.season_number);
+        const seasonData = await this.makeRequest(`tv/${tmdbId}/season/${seasonNumber}`);
+        const episodes = Array.isArray(seasonData.episodes) ? seasonData.episodes : [];
 
-        try {
-          const seasonData = await this.makeRequest(`tv/${tmdbId}/season/${seasonNumber}`);
-          const episodes = Array.isArray(seasonData.episodes)
-            ? (seasonData.episodes as Array<Record<string, any>>)
-            : [];
-
-          const match = episodes.find(
-            (episode) =>
-              typeof episode.air_date === 'string' && episode.air_date === normalizedAirDate,
+        const match = episodes.find((e: any) => e.air_date === normalizedAirDate);
+        if (match) {
+          logger.info(
+            `Found episode by air date ${normalizedAirDate}: S${seasonNumber}E${match.episode_number}`,
           );
-
-          if (match) {
-            logger.info(
-              `Found episode by air date ${normalizedAirDate}: S${seasonNumber}E${match.episode_number}`,
-            );
-            return {
-              ...match,
-              season_number: seasonNumber,
-            };
-          }
-        } catch (seasonError) {
-          logger.warning(
-            `Failed scanning season ${seasonNumber} for show ${tmdbId}: ${seasonError}`,
-          );
+          return { ...match, season_number: seasonNumber };
         }
       }
 
