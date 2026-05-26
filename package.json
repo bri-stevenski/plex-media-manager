@@ -3,10 +3,10 @@
   "version": "3.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "npm@11.6.2",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=24.0.0",
-    "npm": ">=11.0.0"
+    "pnpm": ">=9.0.0"
   },
   "scripts": {
     "setup": "node scripts/setup.js",
@@ -17,11 +17,11 @@
     "lint:fix": "eslint . --ext .ts,.js,.cjs --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "style:check": "npm run lint && npm run format:check",
-    "style:fix": "npm run lint:fix && npm run format",
+    "style:check": "pnpm run lint && pnpm run format:check",
+    "style:fix": "pnpm run lint:fix && pnpm run format",
     "type-check": "tsc -p tsconfig.json",
     "rename:build": "tsc --project tsconfig.rename.json",
-    "rename:setup": "npm run setup && npm run rename:build",
+    "rename:setup": "pnpm run setup && pnpm run rename:build",
     "rename:run": "node dist/agents/cli-media.js",
     "rename:dry-run": "node dist/agents/cli-media.js --dry-run --log-level DEBUG",
     "rename:debug": "node dist/agents/cli-media.js --log-level DEBUG",
@@ -29,13 +29,13 @@
     "start:tv": "node dist/agents/cli-tv.js",
     "start:music": "node dist/agents/cli-music.js",
     "build": "tsc --project tsconfig.json",
-    "build:all": "npm run build",
+    "build:all": "pnpm run build",
     "music:run": "node dist/agents/cli-music.js",
     "music:dry-run": "node dist/agents/cli-music.js --dry-run --log-level DEBUG",
     "music:debug": "node dist/agents/cli-music.js --log-level DEBUG",
     "build:executables": "node scripts/build-executables.js",
     "music:build": "tsc --project tsconfig.music.json",
-    "music:setup": "npm run setup && npm run music:build",
+    "music:setup": "pnpm run setup && pnpm run music:build",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up",
     "docker:down": "docker compose down",
@@ -75,8 +75,10 @@
     "ts-node": "^10.9.2",
     "typescript": "latest"
   },
-  "overrides": {
-    "postcss": ">=8.5.10",
-    "@anthropic-ai/sdk": ">=0.91.1"
+  "pnpm": {
+    "overrides": {
+      "postcss": ">=8.5.10",
+      "@anthropic-ai/sdk": ">=0.91.1"
+    }
   }
 }
