@@ -270,21 +270,20 @@ function guessTitleAndYearFromStem(stem: string): [string, number | null] {
 /**
  * Remove quality and release format tags from a filename stem.
  */
-function cleanStemFromQualityTags(stem: string): string {
-  const qualityPatterns = [
-    /\s*\[?(?:1080p|720p|480p|2160p|4k|UHD)\]?\s*/gi,
-    /\s*\[?(?:WEB[-\s]?DL|WEB|BluRay|BLURAY|BRRip|DVDRip|HDRip)\]?\s*/gi,
-    /\s*\[?(?:x264|x265|h\.?264|h\.?265)\]?\s*/gi,
-    /\s*\[?(?:AMZN|NF|NETFLIX|HBO|HULU|DSNP)\]?\s*/gi,
-    /\s*\[?(?:AAC|AC3|DDP?\d*\.?\d*)\]?\s*/gi,
-    /\s*\[?(?:NTb|ELiTE|GalaxyTV|UTR|FLUX|EVO)\]?\s*/gi,
-  ];
+const QUALITY_TAG_PATTERNS = [
+  /\s*\[?(?:1080p|720p|480p|2160p|4k|UHD)\]?\s*/gi,
+  /\s*\[?(?:WEB[-\s]?DL|WEB|BluRay|BLURAY|BRRip|DVDRip|HDRip)\]?\s*/gi,
+  /\s*\[?(?:x264|x265|h\.?264|h\.?265)\]?\s*/gi,
+  /\s*\[?(?:AMZN|NF|NETFLIX|HBO|HULU|DSNP)\]?\s*/gi,
+  /\s*\[?(?:AAC|AC3|DDP?\d*\.?\d*)\]?\s*/gi,
+  /\s*\[?(?:NTb|ELiTE|GalaxyTV|UTR|FLUX|EVO)\]?\s*/gi,
+];
 
+function cleanStemFromQualityTags(stem: string): string {
   let cleaned = stem;
-  for (const pattern of qualityPatterns) {
+  for (const pattern of QUALITY_TAG_PATTERNS) {
     cleaned = cleaned.replace(pattern, ' ');
   }
-
   return cleaned.replace(/\s+/g, ' ').trim();
 }
 

@@ -54,6 +54,15 @@ function checkCommand(command) {
   });
 }
 
+function commandDetail(result) {
+  return result.status === 0 ? (result.stdout || '').trim() : (result.stderr || '').trim();
+}
+
+function nvmDetail(nodeMatchesNvmrc, nvmCheck) {
+  if (nodeMatchesNvmrc) return 'skipped (node version already correct)';
+  return commandDetail(nvmCheck);
+}
+
 function runChecks() {
   const checks = [];
   const nvmrcPath = resolve(process.cwd(), '.nvmrc');
@@ -85,18 +94,14 @@ function runChecks() {
   checks.push({
     name: 'npm command available',
     ok: npmCheck.status === 0,
-    detail: npmCheck.status === 0 ? (npmCheck.stdout || '').trim() : (npmCheck.stderr || '').trim(),
+    detail: commandDetail(npmCheck),
   });
 
   const nvmCheck = checkCommand('nvm version');
   checks.push({
     name: 'nvm command available (for version switching)',
     ok: nodeMatchesNvmrc || nvmCheck.status === 0,
-    detail: nodeMatchesNvmrc
-      ? 'skipped (node version already correct)'
-      : nvmCheck.status === 0
-        ? (nvmCheck.stdout || '').trim()
-        : (nvmCheck.stderr || '').trim(),
+    detail: nvmDetail(nodeMatchesNvmrc, nvmCheck),
   });
 
   console.log('\nPreflight checks');

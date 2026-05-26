@@ -19,6 +19,6 @@ jobs:
           node-version: "24"
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: npx harness validate --severity error
-      - run: npx harness check-deps --severity error
-      - run: npx harness scan --severity error
+      - run: npx harness validate
+      - run: npx harness check-deps
+      - run: npx harness scan
