@@ -65,6 +65,24 @@ export const QUALITY_FORMATS_REGEX =
 export const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
+// Plex
+export const PLEX_URL = (process.env.PLEX_URL ?? '').replace(/\/$/, '');
+export const PLEX_TOKEN = process.env.PLEX_TOKEN ?? '';
+
+// OpenSubtitles
+export const OPENSUBTITLES_API_KEY = process.env.OPENSUBTITLES_API_KEY ?? '';
+export const OPENSUBTITLES_USERNAME = process.env.OPENSUBTITLES_USERNAME ?? '';
+export const OPENSUBTITLES_PASSWORD = process.env.OPENSUBTITLES_PASSWORD ?? '';
+
+// qBittorrent
+export const QBITTORRENT_URL = (process.env.QBITTORRENT_URL ?? '').replace(/\/$/, '');
+export const QBITTORRENT_USERNAME = process.env.QBITTORRENT_USERNAME ?? 'admin';
+export const QBITTORRENT_PASSWORD = process.env.QBITTORRENT_PASSWORD ?? '';
+
+// Watcher
+export const WATCH_INTERVAL_SECONDS = parseInt(process.env.WATCH_INTERVAL_SECONDS ?? '300', 10);
+export const SUBTITLE_LANGUAGES = process.env.SUBTITLE_LANGUAGES ?? 'en';
+
 export const LOG_LEVELS: Record<string, number> = {
   DEBUG: 10,
   INFO: 20,

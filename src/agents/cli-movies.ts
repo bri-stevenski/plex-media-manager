@@ -41,7 +41,7 @@ const logger = getLogger();
 
 
 
-class MoviesRenamer {
+export class MoviesRenamer {
   private readonly dryRun: boolean;
   private readonly recursive: boolean;
   private readonly useEpisodeTitles: boolean;
