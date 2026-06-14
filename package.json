@@ -9,7 +9,9 @@
     "plex-tv": "src/agents/cli-tv.ts",
     "plex-music": "src/agents/cli-music.ts",
     "plex-watch": "src/agents/cli-watch.ts",
-    "plex-check": "src/agents/cli-check.ts"
+    "plex-check": "src/agents/cli-check.ts",
+    "plex-health": "src/agents/cli-health.ts",
+    "plex-watchlist": "src/agents/cli-watchlist.ts"
   },
   "engines": {
     "node": ">=24.0.0",
@@ -40,6 +42,11 @@
     "watch:once": "node dist/agents/cli-watch.js --once",
     "check:missing": "node dist/agents/cli-check.js",
     "check:missing:notify": "node dist/agents/cli-check.js --notify",
+    "health": "node dist/agents/cli-health.js",
+    "health:subtitles": "node dist/agents/cli-health.js --subtitles",
+    "health:fix-junk": "node dist/agents/cli-health.js --fix-junk",
+    "watchlist": "node dist/agents/cli-watchlist.js",
+    "watchlist:wanted": "node dist/agents/cli-watchlist.js --wanted-only",
     "build": "tsc --project tsconfig.json",
     "build:all": "pnpm run build",
     "music:run": "node dist/agents/cli-music.js",

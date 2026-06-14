@@ -88,6 +88,10 @@ export const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL ?? '';
 export const PUSHOVER_TOKEN = process.env.PUSHOVER_TOKEN ?? '';
 export const PUSHOVER_USER = process.env.PUSHOVER_USER ?? '';
 
+// Trakt
+export const TRAKT_CLIENT_ID = process.env.TRAKT_CLIENT_ID ?? '';
+export const TRAKT_ACCESS_TOKEN = process.env.TRAKT_ACCESS_TOKEN ?? '';
+
 export const LOG_LEVELS: Record<string, number> = {
   DEBUG: 10,
   INFO: 20,
