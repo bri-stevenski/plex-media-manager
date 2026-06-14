@@ -226,6 +226,11 @@ export class TMDbClient {
     return this.makeRequest(`tv/${tmdbId}`);
   }
 
+  async getTvSeasonDetails(tmdbId: number, seasonNumber: number): Promise<Record<string, any>> {
+    logger.debug(`Getting season details for TV ID: ${tmdbId}, season: ${seasonNumber}`);
+    return this.makeRequest(`tv/${tmdbId}/season/${seasonNumber}`);
+  }
+
   private async searchEpisodeInSeason(
     tmdbId: number,
     seasonNumber: number,

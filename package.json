@@ -8,7 +8,8 @@
     "plex-movies": "src/agents/cli-movies.ts",
     "plex-tv": "src/agents/cli-tv.ts",
     "plex-music": "src/agents/cli-music.ts",
-    "plex-watch": "src/agents/cli-watch.ts"
+    "plex-watch": "src/agents/cli-watch.ts",
+    "plex-check": "src/agents/cli-check.ts"
   },
   "engines": {
     "node": ">=24.0.0",
@@ -37,6 +38,8 @@
     "start:watch": "node dist/agents/cli-watch.js",
     "watch:dry-run": "node dist/agents/cli-watch.js --dry-run --log-level DEBUG",
     "watch:once": "node dist/agents/cli-watch.js --once",
+    "check:missing": "node dist/agents/cli-check.js",
+    "check:missing:notify": "node dist/agents/cli-check.js --notify",
     "build": "tsc --project tsconfig.json",
     "build:all": "pnpm run build",
     "music:run": "node dist/agents/cli-music.js",

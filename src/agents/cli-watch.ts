@@ -24,6 +24,7 @@ import {
 import { PlexClient, isPlexConfigured } from '../repository/plex.js';
 import { OpenSubtitlesClient, isOpenSubtitlesConfigured } from '../repository/opensubtitles.js';
 import { QBittorrentClient, isQBittorrentConfigured } from '../repository/download-client.js';
+import { notifyMediaAdded, notifyError, isNotifierConfigured } from '../repository/notifier.js';
 import { MoviesRenamer } from './cli-movies.js';
 import { TvRenamer } from './cli-tv.js';
 
@@ -50,6 +51,9 @@ async function runCycle(opts: WatchOptions): Promise<void> {
     plexScansTriggered: 0,
     errors: 0,
   };
+
+  // Track what was organized so we can notify
+  const organizedItems: { title: string; year?: number; type: 'movie' | 'tv' }[] = [];
 
   // ── 1. Stage from qBittorrent ──────────────────────────────────────────────
   if (isQBittorrentConfigured()) {
@@ -175,6 +179,19 @@ async function runCycle(opts: WatchOptions): Promise<void> {
       logger.error('Plex scan failed', { error: err.message });
       summary.errors++;
     }
+  }
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+  if (isNotifierConfigured() && !opts.dryRun && organizedItems.length > 0) {
+    await notifyMediaAdded(organizedItems).catch((err: any) =>
+      logger.warning('Notification failed', { error: err.message }),
+    );
+  }
+
+  if (summary.errors > 0 && isNotifierConfigured() && !opts.dryRun) {
+    await notifyError('watch cycle', `${summary.errors} error(s) occurred during processing`).catch(
+      () => {},
+    );
   }
 
   // ── Summary ────────────────────────────────────────────────────────────────

@@ -83,6 +83,11 @@ export const QBITTORRENT_PASSWORD = process.env.QBITTORRENT_PASSWORD ?? '';
 export const WATCH_INTERVAL_SECONDS = parseInt(process.env.WATCH_INTERVAL_SECONDS ?? '300', 10);
 export const SUBTITLE_LANGUAGES = process.env.SUBTITLE_LANGUAGES ?? 'en';
 
+// Notifications
+export const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL ?? '';
+export const PUSHOVER_TOKEN = process.env.PUSHOVER_TOKEN ?? '';
+export const PUSHOVER_USER = process.env.PUSHOVER_USER ?? '';
+
 export const LOG_LEVELS: Record<string, number> = {
   DEBUG: 10,
   INFO: 20,
