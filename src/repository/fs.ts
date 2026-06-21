@@ -45,6 +45,12 @@ function moveFile(source: string, destination: string, createDirs: boolean = tru
     throw new FileOperationError(`Source file does not exist: ${source}`);
   }
 
+  if (fs.existsSync(destination)) {
+    throw new FileOperationError(
+      `Destination already exists, refusing to overwrite: ${destination}`,
+    );
+  }
+
   if (createDirs) {
     ensureDirectoryExists(path.dirname(destination));
   }
