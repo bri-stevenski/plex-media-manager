@@ -1,0 +1,25 @@
+name: Tests
+on:
+  pull_request:
+    paths:
+      - src/**
+      - tests/**
+      - package.json
+      - pnpm-lock.yaml
+      - vitest.config.ts
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
