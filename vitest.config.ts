@@ -12,9 +12,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    // Source files import the config barrel, which can construct a winston
-    // logger and create a .logs/ directory. Tests mock getLogger where needed;
-    // this keeps the default reporter output readable.
-    silent: false,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/types/**', 'src/**/index.ts'],
+      reporter: ['text', 'html'],
+    },
   },
 });
