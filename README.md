@@ -154,6 +154,20 @@ npm run rename:run -- --output-subfolder rename-complete "/media/queue"
 - `npm run style:check` runs lint + format checks
 - `npm run type-check` runs TypeScript checks
 
+### Testing
+
+The suite uses [Vitest](https://vitest.dev/) and lives under `tests/`, mirroring
+`src/`. Test selection is risk-prioritized — see `.canary/critical-areas.json`
+for the ranked critical areas the suite targets.
+
+- `pnpm test` runs the suite once (CI mode)
+- `pnpm test:watch` runs in watch mode during development
+- `pnpm test:coverage` runs with a coverage report
+
+Current coverage focuses on the pure-function critical paths (`services/parser`,
+`services/formatter`); `repository/fs`, `repository/tmdb`, and `config/env`
+remain to be covered.
+
 ### Architecture
 
 The project follows a strict layered architecture with barrel exports for standardization:
