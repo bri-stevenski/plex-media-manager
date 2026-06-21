@@ -36,7 +36,7 @@
     "start:movies": "node dist/agents/cli-movies.js",
     "start:tv": "node dist/agents/cli-tv.js",
     "start:music": "node dist/agents/cli-music.js",
-    "build": "tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json && node scripts/write-dist-pkg.cjs",
     "build:all": "pnpm run build",
     "music:run": "node dist/agents/cli-music.js",
     "music:dry-run": "node dist/agents/cli-music.js --dry-run --log-level DEBUG",
