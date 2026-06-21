@@ -93,7 +93,26 @@ export function* scanMediaFiles(directory: string, recursive: boolean = true): G
     return;
   }
 
+  // Track directories by their resolved real path so symlinks that point back
+  // to an ancestor (or to an already-scanned subtree) don't cause infinite
+  // recursion. Legitimate non-cyclic symlinks are still followed.
+  const visitedDirs = new Set<string>();
+
   const scanDir = function* (dir: string): Generator<string> {
+    let realDir: string;
+    try {
+      realDir = fs.realpathSync(dir);
+    } catch (error) {
+      logger.warning(`Skipping unreadable directory during scan: ${dir}: ${error}`);
+      return;
+    }
+
+    if (visitedDirs.has(realDir)) {
+      logger.warning(`Skipping already-visited directory (possible symlink cycle): ${dir}`);
+      return;
+    }
+    visitedDirs.add(realDir);
+
     const files = fs.readdirSync(dir);
     for (const file of files) {
       const filepath = path.join(dir, file);
