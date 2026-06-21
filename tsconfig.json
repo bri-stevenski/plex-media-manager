@@ -8,9 +8,11 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": false,
     "outDir": "dist",
+    "rootDir": "./src",
     "esModuleInterop": true,
     "module": "commonjs",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "resolveJsonModule": true,
     "isolatedModules": false
   },

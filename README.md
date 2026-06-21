@@ -38,6 +38,7 @@ rather than your current shell working directory.
 Choose how to run the tool:
 
 ### 🐳 Docker (Recommended for most users)
+
 - No Node.js installation needed
 - Consistent environment across machines
 - See [DOCKER.md](DOCKER.md) for setup
@@ -47,6 +48,7 @@ docker compose up media-renamer
 ```
 
 ### 📦 Standalone Executable
+
 - Single self-contained binary
 - No Docker or Node.js required
 - See [PKG.md](PKG.md) for details
@@ -56,6 +58,7 @@ docker compose up media-renamer
 ```
 
 ### 💻 Local Development
+
 - Full development environment
 - Direct Node.js/npm execution
 - See Setup section below

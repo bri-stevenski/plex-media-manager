@@ -18,39 +18,6 @@ import {
 import type { MediaInfo } from '../types';
 
 /**
- * Quality and release format tags to be removed from filenames.
- */
-const QUALITY_TAGS_PATTERNS = [
-  /\s*\[?(?:1080p|720p|480p|2160p|4k|UHD)\]?\s*/gi,
-  /\s*\[?(?:WEB[-\s]?DL|WEB|BluRay|BLURAY|BRRip|DVDRip|HDRip)\]?\s*/gi,
-  /\s*\[?(?:x264|x265|h\.?264|h\.?265)\]?\s*/gi,
-  /\s*\[?(?:AMZN|NF|NETFLIX|HBO|HULU|DSNP)\]?\s*/gi,
-  /\s*\[?(?:AAC|AC3|DDP?\d*\.?\d*)\]?\s*/gi,
-  /\s*\[?(?:NTb|ELiTE|GalaxyTV|UTR|FLUX|EVO)\]?\s*/gi,
-];
-
-/**
- * Common noisy patterns in TV show directory or filenames.
- */
-const TV_NOISE_PATTERNS = [
-  /\bS\d{1,2}E\d{1,2}\b/gi,
-  /\bSEASONS?\s+\d{1,2}(?:\s*[-/]\s*\d{1,2})?(?:\s+\d{1,2})*\b/gi,
-  /\bS\d{1,2}(?:\s*[-/]\s*S?\d{1,2})?\b/gi,
-  /\b(1080p|720p|480p|2160p|4k)\b/gi,
-  /\b(WEB[-\s]?DL|BluRay|DVDRip|WEBRip)\b/gi,
-  /\b(x264|x265|h264|h265)\b/gi,
-  /\b(DDP?\d*\.?\d*|AAC|AC3)\b/gi,
-  /\b(AMZN|NF|HBO|HULU)\b/gi,
-  /\b(NTb|ELiTE|GalaxyTV)\b/gi,
-  /\b(REPACK|PROPER|RERIP|READNFO|INTERNAL)\b/gi,
-  /\b(EXTRAS?|BONUS)\b/gi,
-  /\[[^\]]+\]/g,
-  /\{[^}]+\}/g,
-  /\b(COMPLETE|Series)\b/gi,
-  /\b(19|20)\d{2}\b/g,
-];
-
-/**
  * Normalize text by replacing common separators and removing extra whitespace.
  */
 function normalizeText(text: string): string {
@@ -510,14 +477,7 @@ export function parseMediaFile(filepath: string): MediaInfo {
   const isDateBasedTv = dateStr !== null;
 
   if ((isSeasonBasedTv || isDateBasedTv) && !isInMoviesFolder) {
-    return parseTvMedia(
-      filepath,
-      stem,
-      seasonFromFilename,
-      episodeFromFilename,
-      dateStr,
-      dateYear,
-    );
+    return parseTvMedia(filepath, stem, seasonFromFilename, episodeFromFilename, dateStr, dateYear);
   } else {
     return parseMovieMedia(filepath, stem);
   }

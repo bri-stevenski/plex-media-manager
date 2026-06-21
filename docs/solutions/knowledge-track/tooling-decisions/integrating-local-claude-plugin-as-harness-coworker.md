@@ -15,10 +15,10 @@ When a sibling project ships a `.claude-plugin/` directory (with `plugin.json`, 
 
 The two wiring points are independent:
 
-| Surface | Config file | What it enables |
-|---|---|---|
-| Claude Code plugin | `.claude/settings.json` | Agents load as personas in the session |
-| Harness co-worker | `harness.config.json` | Harness dispatch, roadmap, and skill routing |
+| Surface            | Config file             | What it enables                              |
+| ------------------ | ----------------------- | -------------------------------------------- |
+| Claude Code plugin | `.claude/settings.json` | Agents load as personas in the session       |
+| Harness co-worker  | `harness.config.json`   | Harness dispatch, roadmap, and skill routing |
 
 This came up when integrating `oracle-test-ai-agent` (four specialist test personas) into `plex-media-manager`. Commit `f1ce3e0`.
 
@@ -78,11 +78,13 @@ After both changes, restart Claude Code. The sibling agents should appear in the
 ## Applicability
 
 Use this pattern when:
+
 - A sibling project has a complete `.claude-plugin/` structure (plugin.json + marketplace.json + agents).
 - You want its specialist agents available as co-workers without publishing to a remote registry.
 - The two repos live on the same machine (CI/CD environments require a remote source instead).
 
 Do **not** use this pattern when:
+
 - The sibling project is not on the local filesystem — use a `github` or `git` source in `extraKnownMarketplaces` instead.
 - The plugin is already published to a known marketplace — just use `enabledPlugins` directly without `extraKnownMarketplaces`.
 

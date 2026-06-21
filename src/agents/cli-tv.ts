@@ -34,16 +34,10 @@ import {
   scanMediaFiles,
   TMDbClient,
 } from '../repository';
-import {
-  parseMediaFile,
-  constructTvShowDatePath,
-  constructTvShowPath,
-} from '../services';
+import { parseMediaFile, constructTvShowDatePath, constructTvShowPath } from '../services';
 import type { MediaInfo, FileResult } from '../types';
 
 const logger = getLogger();
-
-
 
 class TvRenamer {
   private readonly dryRun: boolean;
@@ -254,7 +248,9 @@ class TvRenamer {
     try {
       const deletedArtifacts = removeKnownQueueArtifacts(path.dirname(sourcePath));
       if (deletedArtifacts > 0) {
-        logger.info(`Deleted ${deletedArtifacts} queue artifact(s) from: ${path.dirname(sourcePath)}`);
+        logger.info(
+          `Deleted ${deletedArtifacts} queue artifact(s) from: ${path.dirname(sourcePath)}`,
+        );
       }
     } catch (error) {
       logger.warning(`Queue artifact cleanup failed for ${path.dirname(sourcePath)}: ${error}`);
@@ -267,7 +263,9 @@ class TvRenamer {
         pruneEmptyDirectories(sourceDir, pruneStop);
       }
     } catch (error) {
-      logger.warning(`Failed pruning empty queue folders for ${path.dirname(sourcePath)}: ${error}`);
+      logger.warning(
+        `Failed pruning empty queue folders for ${path.dirname(sourcePath)}: ${error}`,
+      );
     }
 
     return stagedPath;
@@ -338,7 +336,9 @@ class TvRenamer {
         logger.info(`Deleted ${deletedArtifacts} artifact(s) from: ${sourceDir}`);
       }
     } catch (error) {
-      logger.warning(`Artifact cleanup failed (${label}) for ${path.dirname(sourcePath)}: ${error}`);
+      logger.warning(
+        `Artifact cleanup failed (${label}) for ${path.dirname(sourcePath)}: ${error}`,
+      );
     }
 
     try {
@@ -348,7 +348,9 @@ class TvRenamer {
         pruneEmptyDirectories(sourceDir, pruneStop);
       }
     } catch (error) {
-      logger.warning(`Failed pruning empty folders after quarantine (${label}) for ${sourcePath}: ${error}`);
+      logger.warning(
+        `Failed pruning empty folders after quarantine (${label}) for ${sourcePath}: ${error}`,
+      );
     }
 
     logger.info(`Quarantined to ${label}: ${path.relative(this.libraryRoot, destinationPath)}`);
@@ -378,7 +380,9 @@ class TvRenamer {
       const mediaInfo = parseMediaFile(workingPath);
 
       if (mediaInfo.content_type === CONTENT_TYPE_MOVIES) {
-        logger.warning(`Skipping file: Parsed as ${mediaInfo.content_type}, but this agent only processes TV Shows.`);
+        logger.warning(
+          `Skipping file: Parsed as ${mediaInfo.content_type}, but this agent only processes TV Shows.`,
+        );
         return 'skipped';
       }
 
@@ -637,7 +641,9 @@ class TvRenamer {
     try {
       const sidecars = moveSidecarFiles(sourcePath, destinationPath);
       if (sidecars.moved || sidecars.skipped || sidecars.failed) {
-        logger.info(`Sidecars - moved: ${sidecars.moved}, skipped: ${sidecars.skipped}, failed: ${sidecars.failed}`);
+        logger.info(
+          `Sidecars - moved: ${sidecars.moved}, skipped: ${sidecars.skipped}, failed: ${sidecars.failed}`,
+        );
       }
     } catch (error) {
       logger.warning(`Sidecar move failed for ${sourcePath}: ${error}`);

@@ -151,7 +151,9 @@ export class MediaProcessor {
     this.cleanupQueue(sourceRoot);
 
     const prefix = this.dryRun ? 'DRY RUN COMPLETE -' : 'Processing complete -';
-    logger.info(`${prefix} Total: ${total}, Organized: ${organized}, Skipped: ${skipped}, Failed: ${failed}`);
+    logger.info(
+      `${prefix} Total: ${total}, Organized: ${organized}, Skipped: ${skipped}, Failed: ${failed}`,
+    );
   }
 
   private async processFile(filepath: string, handler: MediaHandler): Promise<FileResult> {
@@ -206,7 +208,9 @@ export class MediaProcessor {
     try {
       const s = moveSidecarFiles(sourcePath, stagedPath);
       if (s.moved || s.skipped || s.failed) {
-        logger.info(`Staged sidecars - moved: ${s.moved}, skipped: ${s.skipped}, failed: ${s.failed}`);
+        logger.info(
+          `Staged sidecars - moved: ${s.moved}, skipped: ${s.skipped}, failed: ${s.failed}`,
+        );
       }
     } catch (error) {
       logger.warning(`Failed staging sidecars for ${sourcePath}: ${error}`);
@@ -379,6 +383,7 @@ export class MediaProcessor {
 **Verify:** `npm run build` — must produce zero TypeScript errors.
 
 **Commit message:**
+
 ```
 feat(services): add MediaProcessor — unified staging/quarantine/sidecar pipeline
 
@@ -392,12 +397,14 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 **Depends on:** Task 1 | **Files:** `src/services/index.ts` (MODIFY)
 
 **Current content of `src/services/index.ts`:**
+
 ```typescript
 export * from './formatter';
 export * from './parser';
 ```
 
 **New content** — add one line at the end:
+
 ```typescript
 export * from './formatter';
 export * from './parser';
@@ -407,6 +414,7 @@ export * from './processor';
 **Verify:** `npm run build` — must produce zero TypeScript errors.
 
 **Commit message:**
+
 ```
 chore(services): export MediaProcessor from services barrel
 
@@ -420,11 +428,13 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 **Depends on:** Task 2 | **Files:** `src/agents/cli-movies.ts` (MODIFY)
 
 **What to remove from `MoviesRenamer`:**
+
 - All private fields: `processingRoot`, `queueRoot`, `failedRoot`, `backupRoot`, `processingSessionId`, `processingSessionRoot`, `running`, `activeSourceRoot`, `sourceRoot`
 - All private methods: `handleShutdown`, `cleanupQueueArtifacts`, `collectDirectories`, `getRelativeToSource`, `stageToProcessing`, `getPruneStopFor`, `quarantineToBackup`, `quarantineToFailed`, `quarantineToRoot`, `moveToDestination`, `cleanupSourceAfterMove`, `extractYear`, `areSamePath`
 - The `run()` method body (replace with processor delegation)
 
 **What to keep / add:**
+
 - Constructor that creates a `MediaProcessor`
 - `run(sourceDir)` that calls `processor.run(sourceDir, moviesHandler)`
 - A `MoviesHandler` class implementing `MediaHandler`
@@ -473,8 +483,14 @@ class MoviesHandler implements MediaHandler {
       .split(path.sep)
       .map((s) => s.toLowerCase());
     const supplemental = [
-      'featurettes', 'extras', 'bonus', 'bonus features',
-      'behind the scenes', 'deleted scenes', 'trailers', 'samples',
+      'featurettes',
+      'extras',
+      'bonus',
+      'bonus features',
+      'behind the scenes',
+      'deleted scenes',
+      'trailers',
+      'samples',
     ];
     return supplemental.some((name) => segments.includes(name));
   }
@@ -629,7 +645,10 @@ async function main() {
         const processingRoot = path.resolve(libraryRoot, PROCESSING_FOLDER);
         const failedRoot = path.resolve(libraryRoot, FAILED_FOLDER);
         const backupRoot = path.resolve(libraryRoot, BACKUP_FOLDER);
-        const destinationRoot = path.resolve(libraryRoot, options.outputSubfolder || COMPLETED_FOLDER);
+        const destinationRoot = path.resolve(
+          libraryRoot,
+          options.outputSubfolder || COMPLETED_FOLDER,
+        );
 
         ensureDirectoryExists(libraryRoot);
         ensureDirectoryExists(processingRoot);
@@ -668,6 +687,7 @@ main().catch((error) => {
 **Verify:** `npm run build` — must produce zero TypeScript errors.
 
 **Commit message:**
+
 ```
 refactor(agents): MoviesRenamer delegates to MediaProcessor
 
@@ -737,8 +757,14 @@ class TvHandler implements MediaHandler {
       .split(path.sep)
       .map((s) => s.toLowerCase());
     const supplemental = [
-      'featurettes', 'extras', 'bonus', 'bonus features',
-      'behind the scenes', 'deleted scenes', 'trailers', 'samples',
+      'featurettes',
+      'extras',
+      'bonus',
+      'bonus features',
+      'behind the scenes',
+      'deleted scenes',
+      'trailers',
+      'samples',
     ];
     return supplemental.some((name) => segments.includes(name));
   }
@@ -803,7 +829,8 @@ class TvHandler implements MediaHandler {
       try {
         const ep = await this.tmdbClient.getEpisodeByAirDate(tmdbData.id, mediaInfo.date_str);
         if (ep) {
-          if (typeof ep.name === 'string' && ep.name.trim()) mediaInfo.episode_title = ep.name.trim();
+          if (typeof ep.name === 'string' && ep.name.trim())
+            mediaInfo.episode_title = ep.name.trim();
           if (typeof ep.season_number === 'number') mediaInfo.season = ep.season_number;
           if (typeof ep.episode_number === 'number') mediaInfo.episode = ep.episode_number;
           return;
@@ -976,7 +1003,10 @@ async function main() {
         const processingRoot = path.resolve(libraryRoot, PROCESSING_FOLDER);
         const failedRoot = path.resolve(libraryRoot, FAILED_FOLDER);
         const backupRoot = path.resolve(libraryRoot, BACKUP_FOLDER);
-        const destinationRoot = path.resolve(libraryRoot, options.outputSubfolder || COMPLETED_FOLDER);
+        const destinationRoot = path.resolve(
+          libraryRoot,
+          options.outputSubfolder || COMPLETED_FOLDER,
+        );
 
         ensureDirectoryExists(libraryRoot);
         ensureDirectoryExists(processingRoot);
@@ -1016,6 +1046,7 @@ main().catch((error) => {
 **Verify:** `npm run build` — must produce zero TypeScript errors.
 
 **Commit message:**
+
 ```
 refactor(agents): TvRenamer delegates to MediaProcessor
 
@@ -1047,6 +1078,7 @@ node dist/agents/cli-tv.js --dry-run --log-level DEBUG <your-test-source-dir>
 ```
 
 Expected log pattern for each organized file:
+
 ```
 info: DRY RUN: MovieName.mkv -> Movies/Movie Title (2024) {tmdb-12345}/Movie Title (2024) {tmdb-12345}.mkv
 ```
@@ -1054,6 +1086,7 @@ info: DRY RUN: MovieName.mkv -> Movies/Movie Title (2024) {tmdb-12345}/Movie Tit
 If `<your-test-source-dir>` does not exist or is empty, create a temporary directory and copy one test file there. If no TMDB_API_KEY is set, the process will exit with an error — that is expected and does not indicate a regression.
 
 **Commit message:**
+
 ```
 chore: verify MediaProcessor build and dry-run smoke test passes
 
@@ -1064,18 +1097,18 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 ## Traceability Matrix
 
-| Observable Truth | Task(s) |
-|---|---|
-| 1. `processor.ts` exports `MediaProcessor`, `MediaHandler`, `ProcessorOptions` | Task 1 |
-| 2. `services/index.ts` re-exports `./processor` | Task 2 |
-| 3. `run()` scans recursively and calls `handler.buildDestinationPath` | Task 1 |
-| 4. `dryRun: false` stages to `processing/<sessionId>/` | Task 1 |
-| 5. `dryRun: true` logs `DRY RUN:` and moves nothing | Task 1, Task 5 |
-| 6. `null` from handler → quarantine to `failed/` | Task 1 |
-| 7. Stage failure → quarantine to `backup/` | Task 1 |
-| 8. Sidecar files moved at each pipeline step | Task 1 |
-| 9. `npm run build` passes with zero TS errors | Tasks 1–4, Task 5 |
-| 10. `--dry-run` output matches expected Plex format | Tasks 3–4, Task 5 |
+| Observable Truth                                                               | Task(s)           |
+| ------------------------------------------------------------------------------ | ----------------- |
+| 1. `processor.ts` exports `MediaProcessor`, `MediaHandler`, `ProcessorOptions` | Task 1            |
+| 2. `services/index.ts` re-exports `./processor`                                | Task 2            |
+| 3. `run()` scans recursively and calls `handler.buildDestinationPath`          | Task 1            |
+| 4. `dryRun: false` stages to `processing/<sessionId>/`                         | Task 1            |
+| 5. `dryRun: true` logs `DRY RUN:` and moves nothing                            | Task 1, Task 5    |
+| 6. `null` from handler → quarantine to `failed/`                               | Task 1            |
+| 7. Stage failure → quarantine to `backup/`                                     | Task 1            |
+| 8. Sidecar files moved at each pipeline step                                   | Task 1            |
+| 9. `npm run build` passes with zero TS errors                                  | Tasks 1–4, Task 5 |
+| 10. `--dry-run` output matches expected Plex format                            | Tasks 3–4, Task 5 |
 
 ---
 

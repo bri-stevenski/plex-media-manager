@@ -72,8 +72,8 @@ class MusicOrganizer {
       }
 
       const musicFileExtensions = ['.mp3', '.flac', '.aac', '.ogg', '.wav', '.alac'];
-      const musicFiles = Array.from(scanMediaFiles(queueFolder, this.recursive)).filter(
-        (file) => musicFileExtensions.some((ext) => file.toLowerCase().endsWith(ext)),
+      const musicFiles = Array.from(scanMediaFiles(queueFolder, this.recursive)).filter((file) =>
+        musicFileExtensions.some((ext) => file.toLowerCase().endsWith(ext)),
       );
 
       logger.info(`Found ${musicFiles.length} music files to process`);
@@ -135,23 +135,11 @@ program
   .description('Organize music files for Plex using metadata sources')
   .version('1.0.0')
   .option('--dry-run', 'Preview changes without moving files', false)
-  .option(
-    '--log-level <level>',
-    'Set logging level (DEBUG, INFO, WARN, ERROR)',
-    DEFAULT_LOG_LEVEL,
-  )
-  .option(
-    '--no-recursive',
-    'Do not recursively scan subdirectories',
-    true,
-  )
+  .option('--log-level <level>', 'Set logging level (DEBUG, INFO, WARN, ERROR)', DEFAULT_LOG_LEVEL)
+  .option('--no-recursive', 'Do not recursively scan subdirectories', true)
   .action(async (options) => {
     try {
-      const organizer = new MusicOrganizer(
-        options.dryRun,
-        options.logLevel,
-        options.recursive,
-      );
+      const organizer = new MusicOrganizer(options.dryRun, options.logLevel, options.recursive);
 
       await organizer.organize();
     } catch (error) {

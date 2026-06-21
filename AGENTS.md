@@ -22,6 +22,7 @@ The project follows a strict layered architecture and uses the Advanced Harness 
 ### Personas
 
 The following personas are configured for this project:
+
 - **Architecture Enforcer**: Validates layer boundaries and dependency rules.
 - **Code Reviewer**: Performs deep-dive reviews and addresses findings.
 - **Planner**: Breaks down complex requirements into executable phase plans.
@@ -29,6 +30,7 @@ The following personas are configured for this project:
 - **Verifier**: Audits implementation against specifications.
 
 ### State & Learnings
+
 - **State**: Persistent project state is stored in `.harness/`.
 - **Learnings**: Institutional knowledge is captured in `.harness/learnings/`.
 

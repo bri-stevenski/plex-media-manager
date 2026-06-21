@@ -11,17 +11,20 @@ node scripts/build-executables.js
 ```
 
 This creates compressed binaries in `bin/` for all platforms:
+
 - `bin/plex-rename-media/` — Media renaming tool
 - `bin/plex-rename-music/` — Music renaming tool (when ready)
 
 ### 2. Run an Executable
 
 **macOS/Linux:**
+
 ```bash
 ./bin/plex-rename-media/plex-rename-media --help
 ```
 
 **Windows:**
+
 ```bash
 .\bin\plex-rename-media\plex-rename-media.exe --help
 ```
@@ -35,18 +38,23 @@ This creates compressed binaries in `bin/` for all platforms:
 ## Building Individual Tools
 
 ### Media Renamer Only
+
 ```bash
 npm run rename:pkg
 ```
+
 Output: `bin/media/` (all platforms)
 
 ### Music Renamer Only
+
 ```bash
 npm run music:pkg
 ```
+
 Output: `bin/music/` (all platforms)
 
 ### All Tools
+
 ```bash
 npm run pkg:all
 ```
@@ -54,6 +62,7 @@ npm run pkg:all
 ## Architecture
 
 Each executable is built for:
+
 - **macOS (Intel)** — `node25-macos-x64`
 - **macOS (Apple Silicon)** — `node25-macos-arm64`
 - **Windows (x64)** — `node25-windows-x64`
@@ -66,9 +75,10 @@ Binaries are compressed with **Brotli** compression for smaller file sizes.
 ✅ **No Node.js installation required** — Just download and run  
 ✅ **Standalone executables** — Works on any matching machine  
 ✅ **Compressed** — Smaller download sizes  
-✅ **All OS support** — macOS, Windows, Linux  
+✅ **All OS support** — macOS, Windows, Linux
 
 Example executables:
+
 ```
 plex-rename-media        (macOS/Linux)
 plex-rename-media.exe    (Windows)
@@ -110,22 +120,28 @@ The build script can be customized in [scripts/build-executables.js](scripts/bui
 ## Troubleshooting
 
 ### "pkg not found"
+
 ```bash
 npm install --save-dev pkg
 npm run pkg:all
 ```
 
 ### Large file sizes
+
 Binaries are compressed with Brotli. If still large, ensure `dist/` only contains necessary files.
 
 ### Build fails on macOS
+
 Install Xcode Command Line Tools:
+
 ```bash
 xcode-select --install
 ```
 
 ### Build fails on Linux
+
 Ensure build dependencies are installed:
+
 ```bash
 sudo apt-get install python3 make g++
 ```
@@ -133,6 +149,7 @@ sudo apt-get install python3 make g++
 ## Size Reference
 
 Typical executable sizes (compressed):
+
 - Media Renamer: ~35-45 MB (depending on platform)
 - Music Renamer: ~35-45 MB (depending on platform)
 
