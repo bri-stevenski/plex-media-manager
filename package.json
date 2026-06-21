@@ -25,6 +25,8 @@
     "style:check": "pnpm run lint && pnpm run format:check",
     "style:fix": "pnpm run lint:fix && pnpm run format",
     "type-check": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "rename:build": "tsc --project tsconfig.rename.json",
     "rename:setup": "pnpm run setup && pnpm run rename:build",
     "rename:run": "node dist/agents/cli-media.js",
@@ -78,7 +80,8 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "prettier": "^3.8.1",
     "ts-node": "^10.9.2",
-    "typescript": "latest"
+    "typescript": "latest",
+    "vitest": "^2"
   },
   "pnpm": {
     "overrides": {

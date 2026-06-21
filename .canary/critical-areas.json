@@ -1,0 +1,50 @@
+{
+  "generated": "2026-06-21T10:10:39Z",
+  "scope": "whole-repo",
+  "signals_used": ["git_churn_all_time", "inbound_dependents", "domain_business_critical"],
+  "notes": "No test-inventory.json present — every file is effectively depth 0 (no tests exist). business_critical applied via domain reasoning: tool mutates/deletes files on disk.",
+  "areas": [
+    {
+      "path": "src/repository/fs.ts",
+      "risk_score": 0.83,
+      "signals": ["highest_churn", "destructive_ops", "business_critical"],
+      "recommended_test_types": ["unit", "integration"],
+      "summary": "Highest-churn file (9 commits). Owns safeMove, moveSidecarFiles, pruneEmptyDirectories, removeKnownQueueArtifacts — the only code that mutates/deletes the user's filesystem. A bug here loses data."
+    },
+    {
+      "path": "src/services/parser.ts",
+      "risk_score": 0.79,
+      "signals": ["high_churn", "pure_function", "business_critical"],
+      "recommended_test_types": ["unit"],
+      "summary": "524-line pure parser (parseMediaFile). Wrong parse => wrong destination. High churn (8), zero deps to mock => ideal first target."
+    },
+    {
+      "path": "src/services/formatter.ts",
+      "risk_score": 0.67,
+      "signals": ["pure_function", "business_critical", "moderate_churn"],
+      "recommended_test_types": ["unit"],
+      "summary": "constructMoviePath / constructTvShowPath / constructTvShowDatePath. Pure path construction; wrong output => misfiled media. Easy to assert, high value."
+    },
+    {
+      "path": "src/repository/tmdb.ts",
+      "risk_score": 0.63,
+      "signals": ["external_api", "business_critical", "match_logic"],
+      "recommended_test_types": ["unit", "integration"],
+      "summary": "639-line TMDbClient (findBestMovieMatch, findBestTvMatch, getEpisodeInfo, getEpisodeByAirDate). External API + best-match heuristics. Mock axios; wrong match => wrong metadata."
+    },
+    {
+      "path": "src/config/env.ts",
+      "risk_score": 0.62,
+      "signals": ["high_churn", "many_dependents", "config_validation"],
+      "recommended_test_types": ["unit"],
+      "summary": "High churn (7) and the most-depended-on module (env feeds logger, fs, tmdb, formatter). Validates TMDB_API_KEY / paths; misconfig fails everything downstream."
+    }
+  ],
+  "below_cut": [
+    {"path": "src/agents/cli-movies.ts", "risk_score": 0.61, "note": "Orchestrator; hard to unit test (class + heavy I/O). Cover via integration after core units exist."},
+    {"path": "src/agents/cli-tv.ts", "risk_score": 0.61, "note": "Largest file (766 LOC); same integration-test posture as cli-movies."},
+    {"path": "src/config/logger.ts", "risk_score": 0.46},
+    {"path": "src/agents/cli-music.ts", "risk_score": 0.45},
+    {"path": "src/types/media.ts", "risk_score": 0.39, "note": "Types only; no runtime behavior to test."}
+  ]
+}
