@@ -45,3 +45,17 @@ pnpm-lock.yaml
 .logs/
 temp/
 tmp/
+
+# Tooling state, caches, and local config (not hand-maintained app source)
+.harness/
+.remember/
+.canary/
+.claude/
+.cursor/
+.gemini/
+.codex/
+
+# Harness-owned, tool-managed definitions and config
+*.agents.md
+*.runtime.json
+harness.config.json

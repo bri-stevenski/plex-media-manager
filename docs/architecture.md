@@ -4,11 +4,11 @@ Plex Media Manager is a CLI toolset that organizes local media files into Plex-f
 
 ## CLI Entry Points
 
-| Command | Source | Purpose |
-|---------|--------|---------|
-| `plex-movies` | [cli-movies.ts](../src/agents/cli-movies.ts) | Organizes movie files using TMDb movie search |
-| `plex-tv` | [cli-tv.ts](../src/agents/cli-tv.ts) | Organizes TV episode files using TMDb TV search |
-| `plex-music` | [cli-music.ts](../src/agents/cli-music.ts) | Organizes music files using MusicBrainz metadata |
+| Command       | Source                                       | Purpose                                          |
+| ------------- | -------------------------------------------- | ------------------------------------------------ |
+| `plex-movies` | [cli-movies.ts](../src/agents/cli-movies.ts) | Organizes movie files using TMDb movie search    |
+| `plex-tv`     | [cli-tv.ts](../src/agents/cli-tv.ts)         | Organizes TV episode files using TMDb TV search  |
+| `plex-music`  | [cli-music.ts](../src/agents/cli-music.ts)   | Organizes music files using MusicBrainz metadata |
 
 ## Layer Breakdown
 

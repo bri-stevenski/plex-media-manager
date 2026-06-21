@@ -18,6 +18,7 @@ cp .env.example .env
 ```
 
 Edit `.env` and add:
+
 - `TMDB_API_KEY`: Your TMDb API key
 - `MEDIA_LIBRARY_ROOT` (optional): Host path to your media library (defaults to `./media`)
 - `MUSIC_LIBRARY_ROOT` (optional): Host path to your music library (defaults to `./music`)
@@ -94,12 +95,14 @@ The Compose configuration mounts:
 ## Service Architecture
 
 ### Media Renamer
+
 - **Image**: Built from `Dockerfile`
 - **Purpose**: Organizes movies and TV shows using TMDb metadata
 - **Input**: `./media/queue`
 - **Output**: `./media/organized/`
 
 ### Music Renamer
+
 - **Image**: Built from `Dockerfile.music`
 - **Purpose**: Organizes music files using MusicBrainz metadata
 - **Input**: `./music/queue`

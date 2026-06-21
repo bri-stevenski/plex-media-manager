@@ -35,7 +35,7 @@ Standardize the project architecture by enforcing strict Harness layering, imple
 3. Service Layer Refactor (~2 tasks, ~8 min)
 4. Agent Layer Refactor (~3 tasks, ~12 min)
 5. Final Validation (~1 task, ~5 min)
-**Estimated total:** 12 tasks, ~45 minutes
+   **Estimated total:** 12 tasks, ~45 minutes
 
 ## Tasks
 
