@@ -10,6 +10,7 @@ on:
       - pnpm-lock.yaml
       - vitest.config.ts
       - tsconfig.json
+      - scripts/**
       - .prettierignore
       - .eslintrc.json
   push:
@@ -40,3 +41,16 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run type-check
       - run: pnpm run format:check
+  build-smoke:
+    # Builds and starts the compiled CLI so an ESM/CJS regression (the built
+    # dist/ failing to run under the "type": "module" root package) is caught.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node dist/agents/cli-movies.js --help
