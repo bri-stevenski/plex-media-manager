@@ -25,7 +25,7 @@ vi.mock('../../src/config', async (importOriginal) => {
   };
 });
 
-import { safeMove } from '../../src/repository/fs';
+import { safeMove, scanMediaFiles } from '../../src/repository/fs';
 
 let tmp: string;
 
@@ -85,5 +85,36 @@ describe('safeMove — normal operation', () => {
 
     expect(safeMove(source, dest)).toBe(false);
     expect(fs.existsSync(dest)).toBe(false);
+  });
+});
+
+describe('scanMediaFiles — symlink cycle protection', () => {
+  it('terminates on a self-referential symlink cycle instead of infinite-looping', () => {
+    const root = path.join(tmp, 'lib');
+    fs.mkdirSync(root, { recursive: true });
+    const movie = path.join(root, 'movie.mkv');
+    fs.writeFileSync(movie, 'x');
+    // A directory symlink pointing back at its own parent: scanning must not
+    // recurse into it forever.
+    fs.symlinkSync(root, path.join(root, 'loop'), 'dir');
+
+    const found = Array.from(scanMediaFiles(root));
+
+    expect(found).toContain(movie);
+  });
+});
+
+describe('scanMediaFiles — normal traversal', () => {
+  it('yields only video files, recursing into real subdirectories', () => {
+    fs.mkdirSync(path.join(tmp, 'lib', 'Season 01'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'lib', 'a.mkv'), 'x');
+    fs.writeFileSync(path.join(tmp, 'lib', 'notes.txt'), 'x'); // non-video, skipped
+    fs.writeFileSync(path.join(tmp, 'lib', 'Season 01', 'b.mp4'), 'x');
+
+    const found = Array.from(scanMediaFiles(path.join(tmp, 'lib'))).sort();
+
+    expect(found).toEqual(
+      [path.join(tmp, 'lib', 'Season 01', 'b.mp4'), path.join(tmp, 'lib', 'a.mkv')].sort(),
+    );
   });
 });
