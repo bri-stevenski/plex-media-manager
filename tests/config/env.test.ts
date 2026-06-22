@@ -11,6 +11,12 @@
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// env.ts calls dotenv.config() at module load. Stub it so the test never reads
+// the developer's real .env — otherwise a populated local .env (e.g. a real
+// TMDB_API_KEY) leaks into the module and breaks the "defaults when unset"
+// assertions. Mocking keeps the test hermetic: only what each test sets counts.
+vi.mock('dotenv', () => ({ default: { config: () => ({ parsed: {} }) } }));
+
 const ENV_KEYS = [
   'MEDIA_BASE_DIR',
   'QUEUE_FOLDER',
