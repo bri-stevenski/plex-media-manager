@@ -94,3 +94,36 @@ describe('parseMediaFile — classification edge cases (Phase 2)', () => {
     expect(info.year).toBeNull();
   });
 });
+
+describe('parseMediaFile — flat TV files (no show subfolder)', () => {
+  it('derives the show title from the filename when a season file sits directly under TV Shows', () => {
+    const info = parseMediaFile(
+      p('/media', 'TV Shows', 'The.Office.US.S03E10.Christmas.Party.1080p.mkv'),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.title).toBe('The Office US'); // not "The Office US Christmas Party mkv"
+    expect(info.season).toBe(3);
+    expect(info.episode).toBe(10);
+  });
+
+  it('derives the show title for a flat date-based file', () => {
+    const info = parseMediaFile(
+      p('/media', 'TV Shows', 'The.Daily.Show.2020-03-15.Jon.Stewart.mkv'),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.title).toBe('The Daily Show'); // not "The Daily Show 03 15 Jon Stewart mkv"
+    expect(info.date_str).toBe('2020-03-15');
+  });
+
+  it('still prefers a real show folder (with year) over the filename', () => {
+    // Regression: a Season-foldered show without a "TV Shows" ancestor must keep
+    // using the folder name — and its year.
+    const info = parseMediaFile(
+      p('/library', 'Breaking Bad (2008)', 'Season 01', 'Breaking Bad - s01e01 - Pilot.mkv'),
+    );
+    expect(info.title).toBe('Breaking Bad');
+    expect(info.year).toBe(2008);
+    expect(info.season).toBe(1);
+    expect(info.episode).toBe(1);
+  });
+});

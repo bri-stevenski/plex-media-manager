@@ -371,6 +371,30 @@ function cleanShowTitle(showDir: string): string {
 /**
  * Parse a TV media file and extract metadata.
  */
+/**
+ * Derive a show title from a release-style filename stem (e.g.
+ * "The.Office.US.S03E10.Christmas.Party.1080p") by taking everything before the
+ * season/episode or air-date token and cleaning it. Used when a TV file has no
+ * show folder to read the name from, so a flat file under TV Shows/ no longer
+ * mangles the title with the episode name and extension.
+ */
+function deriveShowTitleFromStem(stem: string): string {
+  let head = stem;
+  const seMatch = SEASON_EPISODE_REGEX.exec(stem);
+  if (seMatch && seMatch.index > 0) {
+    head = stem.slice(0, seMatch.index);
+  } else {
+    for (const rx of DATE_REGEXES) {
+      const match = rx.exec(stem);
+      if (match && match.index > 0) {
+        head = stem.slice(0, match.index);
+        break;
+      }
+    }
+  }
+  return cleanShowTitle(head) || cleanShowTitle(stem);
+}
+
 function parseTvMedia(
   filepath: string,
   stem: string,
@@ -380,17 +404,27 @@ function parseTvMedia(
   dateYear: number | null,
 ): MediaInfo {
   const pathParts = path.normalize(filepath).split(path.sep);
+  const fileIndex = pathParts.length - 1;
   let showDir: string | null = null;
 
+  // A real show folder lives directly under "TV Shows/" — but only when that
+  // next segment is a subdirectory, not the media file sitting in TV Shows/.
   for (let i = 0; i < pathParts.length; i++) {
-    if (pathParts[i]?.toLowerCase() === 'tv shows' && i + 1 < pathParts.length) {
+    if (pathParts[i]?.toLowerCase() === 'tv shows' && i + 1 < fileIndex) {
       showDir = pathParts[i + 1];
       break;
     }
   }
 
+  // Otherwise a show folder is recognisable from the parent: a Season/Specials
+  // parent (show is the grandparent) or a parent carrying a "(YYYY)" tag.
   if (!showDir) {
-    showDir = inferShowDirectoryFromPath(filepath);
+    const parent = path.basename(path.dirname(filepath));
+    const parentIsShowFolder =
+      /^Season\s+\d{1,2}$/i.test(parent) || /^Specials$/i.test(parent) || /\(\d{4}\)/.test(parent);
+    if (parentIsShowFolder) {
+      showDir = inferShowDirectoryFromPath(filepath);
+    }
   }
 
   let yearFromDir: number | null = null;
@@ -401,7 +435,9 @@ function parseTvMedia(
     }
   }
 
-  const showTitle = cleanShowTitle(showDir || inferShowDirectoryFromPath(filepath));
+  // With a real show folder, clean its name; otherwise (flat/loose file) derive
+  // the title from the filename rather than mangling a container directory.
+  const showTitle = showDir ? cleanShowTitle(showDir) : deriveShowTitleFromStem(stem);
   const episodeTitle = extractEpisodeTitleFromFilename(stem);
 
   let season = seasonFromFilename;
