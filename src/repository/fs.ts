@@ -18,6 +18,28 @@ class FileOperationError extends Error {
   }
 }
 
+/**
+ * Render a caught filesystem error as an actionable suffix: the errno code plus
+ * a recovery hint for the common cases, instead of leaking a raw `${error}`
+ * (which stringifies unhelpfully and hides the one field worth acting on).
+ */
+function describeError(error: unknown): string {
+  const code = (error as NodeJS.ErrnoException)?.code;
+  switch (code) {
+    case 'EACCES':
+    case 'EPERM':
+      return `permission denied (${code}) — check write access to the destination`;
+    case 'ENOSPC':
+      return `no space left on device (${code})`;
+    case 'EROFS':
+      return `read-only filesystem (${code})`;
+    case undefined:
+      return error instanceof Error ? error.message : String(error);
+    default:
+      return code;
+  }
+}
+
 const SIDECAR_EXTENSIONS = new Set([
   // Subtitles
   '.srt',
@@ -42,7 +64,9 @@ const QUEUE_ARTIFACT_PATTERNS: ReadonlyArray<RegExp> = [
  */
 function moveFile(source: string, destination: string, createDirs: boolean = true): void {
   if (!fs.existsSync(source)) {
-    throw new FileOperationError(`Source file does not exist: ${source}`);
+    throw new FileOperationError(
+      `Source file no longer exists: ${source} — it may have been moved or deleted since the scan`,
+    );
   }
 
   if (fs.existsSync(destination)) {
@@ -70,12 +94,14 @@ function moveFile(source: string, destination: string, createDirs: boolean = tru
         return;
       } catch (copyError) {
         throw new FileOperationError(
-          `Failed cross-device move ${source} to ${destination}: ${copyError}`,
+          `Could not copy ${source} across devices to ${destination}: ${describeError(copyError)}`,
         );
       }
     }
 
-    throw new FileOperationError(`Failed to move file ${source} to ${destination}: ${error}`);
+    throw new FileOperationError(
+      `Could not move ${source} to ${destination}: ${describeError(error)}`,
+    );
   }
 }
 
@@ -142,7 +168,9 @@ export function ensureDirectoryExists(directory: string): void {
     }
     logger.debug(`Ensured directory exists: ${directory}`);
   } catch (error) {
-    throw new FileOperationError(`Failed to create directory ${directory}: ${error}`);
+    throw new FileOperationError(
+      `Could not create directory ${directory}: ${describeError(error)}`,
+    );
   }
 }
 
