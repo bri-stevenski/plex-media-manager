@@ -106,7 +106,9 @@ class MoviesRenamer {
   async run(sourceDir: string): Promise<void> {
     const sourceRoot = path.resolve(sourceDir);
     if (!fs.existsSync(sourceRoot) || !fs.statSync(sourceRoot).isDirectory()) {
-      throw new Error(`Source directory not found: ${sourceRoot}`);
+      throw new Error(
+        `Source directory not found: ${sourceRoot} — create it or pass an existing path as the source_dir argument`,
+      );
     }
 
     this.sourceRoot = sourceRoot;
