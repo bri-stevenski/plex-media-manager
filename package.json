@@ -83,7 +83,7 @@
     "prettier": "^3.8.1",
     "ts-node": "^10.9.2",
     "typescript": "latest",
-    "vitest": "^2"
+    "vitest": "^3"
   },
   "pnpm": {
     "overrides": {
