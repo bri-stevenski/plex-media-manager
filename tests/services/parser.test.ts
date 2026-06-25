@@ -127,6 +127,39 @@ describe('parseMediaFile — classification edge cases (Phase 2)', () => {
   });
 });
 
+describe('parseMediaFile — release-folder season detection', () => {
+  it('classifies a file in a ShowName.S04.Release/ folder as TV with season and episode', () => {
+    const info = parseMediaFile(
+      p(
+        '/media',
+        'tv',
+        'Its.Always.Sunny.in.Philadelphia.S04.REPACK.DVDrip.XViD-CLUE',
+        'clue-sun401.avi',
+      ),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.season).toBe(4);
+    expect(info.episode).toBe(1);
+    expect(info.title).toContain('Its Always Sunny in Philadelphia');
+  });
+
+  it('does not misclassify Pokemon SxxExx episodes as movies when the parent folder contains the word "Movie"', () => {
+    const info = parseMediaFile(
+      p(
+        '/media',
+        'tv',
+        'Pokemon S01 (1997-) + Movie (1998)',
+        'Pokemon S01 Indigo League (360p re-dvdrip)',
+        'Pokemon S01E01 Pokemon I Choose You.mp4',
+      ),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.season).toBe(1);
+    expect(info.episode).toBe(1);
+    expect(info.title).toBe('Pokemon');
+  });
+});
+
 describe('parseMediaFile — flat TV files (no show subfolder)', () => {
   it('derives the show title from the filename when a season file sits directly under TV Shows', () => {
     const info = parseMediaFile(

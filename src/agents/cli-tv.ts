@@ -570,7 +570,7 @@ class TvRenamer {
         mediaInfo.date_str,
         mediaInfo.episode_title,
         extension,
-        this.destinationRoot,
+        this.libraryRoot,
       );
     }
 
@@ -590,7 +590,7 @@ class TvRenamer {
       mediaInfo.episode,
       episodeTitle,
       extension,
-      this.destinationRoot,
+      this.libraryRoot,
     );
   }
 

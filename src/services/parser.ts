@@ -520,13 +520,59 @@ function parseMovieMedia(filepath: string, stem: string): MediaInfo {
 }
 
 /**
+ * Extract season number from a release-style folder name (e.g. "Show.S04.Release").
+ * Only matches S followed by digits when surrounded by separator characters or at boundaries,
+ * so "Sunny" or "Sinister" don't trigger false positives.
+ */
+function extractSeasonFromReleaseFolder(folderName: string): number | null {
+  const match = /(?:^|[._\s-])S(\d{1,2})(?=[._\s-]|$)/i.exec(folderName);
+  if (!match || !match[1]) return null;
+  const season = parseInt(match[1]);
+  return season >= 1 && season <= 99 ? season : null;
+}
+
+/**
+ * Extract the show title from a release-style folder by taking everything before the
+ * season indicator. E.g. "Its.Always.Sunny.in.Philadelphia.S04.REPACK" → "Its Always Sunny in Philadelphia".
+ */
+function extractTitleFromReleaseFolder(folderName: string): string {
+  const match = /(?:^|[._\s-])S\d{1,2}(?=[._\s-]|$)/i.exec(folderName);
+  if (!match || match.index === 0) return '';
+  return cleanShowTitle(folderName.slice(0, match.index));
+}
+
+/**
+ * When a file sits in a release-season folder (e.g. Show.S04.Release/) and uses a compact
+ * numbering scheme like "show401.avi" (season 4, ep 01), derive the episode by stripping the
+ * leading season digits from the numeric suffix in the stem.
+ */
+function extractEpisodeFromSeasonFolderFile(stem: string, season: number): number | null {
+  const seasonStr = String(season);
+  for (const match of stem.matchAll(/\d+/g)) {
+    const num = match[0];
+    if (num.startsWith(seasonStr) && num.length > seasonStr.length) {
+      const epStr = num.slice(seasonStr.length);
+      if (epStr.length >= 2 && epStr.length <= 3) {
+        const ep = parseInt(epStr);
+        if (ep >= 0 && ep <= 999) return ep;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Parse a media file and extract all relevant metadata.
  */
 export function parseMediaFile(filepath: string): MediaInfo {
   const stem = path.basename(filepath, path.extname(filepath));
   const filename = path.basename(filepath);
 
-  const isInMoviesFolder = /\bmovies?\b/i.test(filepath);
+  // Only treat the file as being in a Movies library if a path segment is exactly "Movies"
+  // or "Movie" — prevents false positives like "Pokemon ... + Movie (1998)".
+  const isInMoviesFolder = path.normalize(filepath).split(path.sep).some((seg) =>
+    /^movies?$/i.test(seg),
+  );
   const [seasonFromFilename, episodeFromFilename] = parseTvFilename(filename);
   const [dateStr, dateYear] = parseDateInFilename(filename);
   const isSeasonBasedTv = seasonFromFilename !== null && episodeFromFilename !== null;
@@ -534,7 +580,27 @@ export function parseMediaFile(filepath: string): MediaInfo {
 
   if ((isSeasonBasedTv || isDateBasedTv) && !isInMoviesFolder) {
     return parseTvMedia(filepath, stem, seasonFromFilename, episodeFromFilename, dateStr, dateYear);
-  } else {
-    return parseMovieMedia(filepath, stem);
   }
+
+  // Fallback: detect release-style season folders (e.g. ShowName.S04.DVDrip/)
+  // whose individual episode files carry no SxxExx token of their own (e.g. clue-sun401.avi).
+  if (!isInMoviesFolder) {
+    const parentDir = path.basename(path.dirname(filepath));
+    const releaseSeason = extractSeasonFromReleaseFolder(parentDir);
+    if (releaseSeason !== null) {
+      const folderTitle = extractTitleFromReleaseFolder(parentDir);
+      return {
+        content_type: CONTENT_TYPE_TV,
+        title: folderTitle || deriveShowTitleFromStem(stem),
+        year: null,
+        season: releaseSeason,
+        episode: extractEpisodeFromSeasonFolderFile(stem, releaseSeason),
+        episode_title: extractEpisodeTitleFromFilename(stem),
+        date_str: null,
+        tmdb_id: null,
+      };
+    }
+  }
+
+  return parseMovieMedia(filepath, stem);
 }

@@ -505,7 +505,7 @@ class MoviesRenamer {
       return null;
     }
 
-    return constructMoviePath(movieTitle, movieYear, tmdbId, extension, this.destinationRoot);
+    return constructMoviePath(movieTitle, movieYear, tmdbId, extension, this.libraryRoot);
   }
 
   private moveToDestination(
