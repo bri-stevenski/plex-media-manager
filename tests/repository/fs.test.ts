@@ -102,7 +102,12 @@ describe('scanMediaFiles — symlink cycle protection', () => {
     fs.writeFileSync(movie, 'x');
     // A directory symlink pointing back at its own parent: scanning must not
     // recurse into it forever.
-    fs.symlinkSync(root, path.join(root, 'loop'), 'dir');
+    try {
+      fs.symlinkSync(root, path.join(root, 'loop'), 'dir');
+    } catch (e: any) {
+      if (e.code === 'EPERM') return; // Windows requires elevated privileges for symlinks
+      throw e;
+    }
 
     const found = Array.from(scanMediaFiles(root));
 

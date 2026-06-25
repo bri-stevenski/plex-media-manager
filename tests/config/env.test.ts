@@ -121,7 +121,10 @@ describe('MEDIA_BASE_DIR resolution', () => {
   });
 
   it('uses an absolute override as-is', async () => {
-    const abs = path.join(path.sep, 'mnt', 'media');
+    const abs =
+      process.platform === 'win32'
+        ? path.join('C:\\', 'mnt', 'media')
+        : path.join(path.sep, 'mnt', 'media');
     process.env.MEDIA_BASE_DIR = abs;
     expect((await loadEnv()).MEDIA_BASE_DIR).toBe(abs);
   });
