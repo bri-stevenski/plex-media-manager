@@ -7,7 +7,8 @@
   "bin": {
     "plex-movies": "src/agents/cli-movies.ts",
     "plex-tv": "src/agents/cli-tv.ts",
-    "plex-music": "src/agents/cli-music.ts"
+    "plex-music": "src/agents/cli-music.ts",
+    "plex-complete": "src/agents/cli-complete.ts"
   },
   "engines": {
     "node": ">=24.0.0",
@@ -36,6 +37,7 @@
     "start:movies": "node dist/agents/cli-movies.js",
     "start:tv": "node dist/agents/cli-tv.js",
     "start:music": "node dist/agents/cli-music.js",
+    "start:complete": "node dist/agents/cli-complete.js",
     "build": "tsc --project tsconfig.json && node scripts/write-dist-pkg.cjs",
     "build:all": "pnpm run build",
     "music:run": "node dist/agents/cli-music.js",
