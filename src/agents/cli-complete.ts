@@ -20,7 +20,7 @@ import path from 'path';
 import fs from 'fs';
 import { spawnSync } from 'child_process';
 import { Command } from 'commander';
-import { DEFAULT_LOG_LEVEL, MEDIA_BASE_DIR, COMPLETED_FOLDER, setupLogging, getLogger } from '../config';
+import { DEFAULT_LOG_LEVEL, MEDIA_BASE_DIR, setupLogging, getLogger } from '../config';
 
 const logger = getLogger();
 

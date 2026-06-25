@@ -192,7 +192,10 @@ function guessTitleAndYearFromStem(stem: string): [string, number | null] {
     titlePart = s.slice(0, parenthesesMatch.index).trim();
   } else {
     // Strip filesize tokens (e.g. "1900mb", "8gb") before year extraction to avoid false matches
-    const sNoFilesizes = s.replace(/\b\d+\s*[kmg]b\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    const sNoFilesizes = s
+      .replace(/\b\d+\s*[kmg]b\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
     year = extractYearFromStem(sNoFilesizes);
     if (year) {
       const yearMatch = Array.from(s.matchAll(new RegExp(YEAR_REGEX.source, 'g'))).find(
