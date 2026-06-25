@@ -82,6 +82,38 @@ describe('parseMediaFile — TV (date-based)', () => {
   });
 });
 
+describe('parseMediaFile — embedded TMDb IDs and filesize tokens', () => {
+  it('extracts tmdb_id from {tmdb-XXXXX} in the filename and cleans it from the title', () => {
+    const info = parseMediaFile(p('/media', 'Movies', 'Dark Pheonix (2019) {tmdb-320288}.mp4'));
+    expect(info.content_type).toBe('Movies');
+    expect(info.tmdb_id).toBe(320288);
+    expect(info.title).not.toContain('tmdb');
+    expect(info.year).toBe(2019);
+  });
+
+  it('extracts tmdb_id from (tmdb-XXXXX) paren variant and cleans it from the title', () => {
+    const info = parseMediaFile(
+      p('/media', 'Movies', 'Now You See Me Now You Dont (tmdb-425274).mp4'),
+    );
+    expect(info.content_type).toBe('Movies');
+    expect(info.tmdb_id).toBe(425274);
+    expect(info.title).not.toContain('tmdb');
+  });
+
+  it('ignores filesize tokens like 1900mb when extracting the year', () => {
+    const info = parseMediaFile(
+      p(
+        '/media',
+        'Movies',
+        'They.Will.Kill.You.2026.bluray.sdr.1080p.av1.5.1.opus.subs.1900mb-Dust.mkv',
+      ),
+    );
+    expect(info.content_type).toBe('Movies');
+    expect(info.year).toBe(2026);
+    expect(info.year).not.toBe(1900);
+  });
+});
+
 describe('parseMediaFile — classification edge cases (Phase 2)', () => {
   it('treats a file under a Movies folder as a movie even if it contains SxxExx', () => {
     // isInMoviesFolder takes precedence over season/episode detection.

@@ -18,6 +18,17 @@ import {
 import type { MediaInfo } from '../types';
 
 /**
+ * Extract a TMDb ID embedded in a filename or folder name.
+ * Handles both {tmdb-XXXXX} (Plex standard) and (tmdb-XXXXX) (common variant).
+ */
+function extractTmdbId(text: string): number | null {
+  const match = /[{(]tmdb-(\d+)[})]/i.exec(text);
+  if (!match || !match[1]) return null;
+  const id = parseInt(match[1]);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+/**
  * Normalize text by replacing common separators and removing extra whitespace.
  */
 function normalizeText(text: string): string {
@@ -168,7 +179,9 @@ function extractYearFromStem(stem: string): number | null {
  * Extract human-readable title and year from a noisy filename stem.
  */
 function guessTitleAndYearFromStem(stem: string): [string, number | null] {
-  const s = normalizeText(stem);
+  // Strip embedded TMDb ID tags before any processing so they don't pollute the title
+  const strippedStem = stem.replace(/[({]tmdb-\d+[})]/gi, '').trim();
+  const s = normalizeText(strippedStem);
 
   // First try parentheses style: Title (2024)
   let year: number | null = null;
@@ -178,8 +191,9 @@ function guessTitleAndYearFromStem(stem: string): [string, number | null] {
     year = parseInt(parenthesesMatch[0].slice(1, -1));
     titlePart = s.slice(0, parenthesesMatch.index).trim();
   } else {
-    // Otherwise pick the last 4-digit year token
-    year = extractYearFromStem(s);
+    // Strip filesize tokens (e.g. "1900mb", "8gb") before year extraction to avoid false matches
+    const sNoFilesizes = s.replace(/\b\d+\s*[kmg]b\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    year = extractYearFromStem(sNoFilesizes);
     if (year) {
       const yearMatch = Array.from(s.matchAll(new RegExp(YEAR_REGEX.source, 'g'))).find(
         (m) => parseInt(m[0]) === year,
@@ -458,6 +472,7 @@ function parseTvMedia(
     episode: episodeFromFilename,
     episode_title: episodeTitle,
     date_str: dateStr,
+    tmdb_id: null,
   };
 }
 
@@ -465,6 +480,7 @@ function parseTvMedia(
  * Parse a movie media file and extract metadata.
  */
 function parseMovieMedia(filepath: string, stem: string): MediaInfo {
+  const tmdb_id = extractTmdbId(stem) ?? extractTmdbId(path.dirname(filepath));
   const [titleFromStem, yearFromStem] = guessTitleAndYearFromStem(stem);
   const movieDirInfo = parseMovieDirectoryFromPath(filepath);
 
@@ -496,6 +512,7 @@ function parseMovieMedia(filepath: string, stem: string): MediaInfo {
     episode: null,
     episode_title: null,
     date_str: null,
+    tmdb_id: tmdb_id ?? null,
   };
 }
 

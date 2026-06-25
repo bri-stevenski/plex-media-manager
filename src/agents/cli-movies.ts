@@ -456,6 +456,17 @@ class MoviesRenamer {
   }
 
   private async lookupTmdbMetadata(mediaInfo: MediaInfo): Promise<Record<string, any> | null> {
+    if (mediaInfo.tmdb_id) {
+      logger.info(`Using embedded TMDb ID ${mediaInfo.tmdb_id} — skipping title search`);
+      try {
+        return await this.tmdbClient.getMovieDetails(mediaInfo.tmdb_id);
+      } catch (error) {
+        logger.warning(
+          `Direct TMDb lookup by ID ${mediaInfo.tmdb_id} failed, falling back to title search: ${error}`,
+        );
+      }
+    }
+
     const cleanTitle = (mediaInfo.title || '').trim();
     if (!cleanTitle) {
       logger.warning('Parsed title is empty; cannot query TMDb');

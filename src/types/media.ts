@@ -6,6 +6,7 @@ export interface MediaInfo {
   episode: number | null;
   episode_title: string | null;
   date_str: string | null;
+  tmdb_id: number | null;
 }
 
 export type FileResult = 'organized' | 'skipped' | 'failed';
