@@ -160,6 +160,53 @@ describe('parseMediaFile — release-folder season detection', () => {
   });
 });
 
+describe('parseMediaFile — bare sNN season folder with XXYY episode numbering', () => {
+  it('uses grandparent folder as show title when parent is a bare sNN folder', () => {
+    const info = parseMediaFile(
+      p('/media', 'South.Of.Nowhere', 's01', 'south.of.nowhere.0101-yestv.avi'),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.title).toBe('South Of Nowhere');
+    expect(info.season).toBe(1);
+    expect(info.episode).toBe(1);
+  });
+
+  it('extracts episode from XXYY compact code for episode 10', () => {
+    const info = parseMediaFile(
+      p('/media', 'South.Of.Nowhere', 's01', 'south.of.nowhere.0110-yestv.avi'),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.season).toBe(1);
+    expect(info.episode).toBe(10);
+  });
+
+  it('handles sNN folders for season 2 (zero-padded XXYY)', () => {
+    const info = parseMediaFile(
+      p('/media', 'South.Of.Nowhere', 's02', 'south.of.nowhere.0201-yestv.avi'),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.title).toBe('South Of Nowhere');
+    expect(info.season).toBe(2);
+    expect(info.episode).toBe(1);
+  });
+
+  it('does not regress the ShowName.SNN.Release/ title extraction', () => {
+    // Existing release-folder path: folderTitle is non-empty, grandparent NOT used.
+    const info = parseMediaFile(
+      p(
+        '/media',
+        'tv',
+        'Its.Always.Sunny.in.Philadelphia.S04.REPACK.DVDrip.XViD-CLUE',
+        'clue-sun401.avi',
+      ),
+    );
+    expect(info.content_type).toBe('TV Shows');
+    expect(info.title).toContain('Its Always Sunny in Philadelphia');
+    expect(info.season).toBe(4);
+    expect(info.episode).toBe(1);
+  });
+});
+
 describe('parseMediaFile — flat TV files (no show subfolder)', () => {
   it('derives the show title from the filename when a season file sits directly under TV Shows', () => {
     const info = parseMediaFile(

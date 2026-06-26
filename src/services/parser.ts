@@ -548,13 +548,19 @@ function extractTitleFromReleaseFolder(folderName: string): string {
  */
 function extractEpisodeFromSeasonFolderFile(stem: string, season: number): number | null {
   const seasonStr = String(season);
+  // Also try zero-padded prefix so XXYY compact codes like "0101" (S01E01) are handled
+  // when the parent folder is "s01" and season resolves to 1.
+  const seasonStrPadded = seasonStr.padStart(2, '0');
+  const prefixes = seasonStr === seasonStrPadded ? [seasonStr] : [seasonStr, seasonStrPadded];
   for (const match of stem.matchAll(/\d+/g)) {
     const num = match[0];
-    if (num.startsWith(seasonStr) && num.length > seasonStr.length) {
-      const epStr = num.slice(seasonStr.length);
-      if (epStr.length >= 2 && epStr.length <= 3) {
-        const ep = parseInt(epStr);
-        if (ep >= 0 && ep <= 999) return ep;
+    for (const prefix of prefixes) {
+      if (num.startsWith(prefix) && num.length > prefix.length) {
+        const epStr = num.slice(prefix.length);
+        if (epStr.length >= 2 && epStr.length <= 3) {
+          const ep = parseInt(epStr);
+          if (ep >= 0 && ep <= 999) return ep;
+        }
       }
     }
   }
@@ -589,9 +595,15 @@ export function parseMediaFile(filepath: string): MediaInfo {
     const releaseSeason = extractSeasonFromReleaseFolder(parentDir);
     if (releaseSeason !== null) {
       const folderTitle = extractTitleFromReleaseFolder(parentDir);
+      // When parent is a bare "sNN" folder (no title before the season marker), use the
+      // grandparent folder name as the show title instead of deriving from the stem —
+      // otherwise episode numbers embedded in the stem (XXYY format) pollute the title.
+      const grandparentTitle = folderTitle
+        ? ''
+        : cleanShowTitle(path.basename(path.dirname(path.dirname(filepath))));
       return {
         content_type: CONTENT_TYPE_TV,
-        title: folderTitle || deriveShowTitleFromStem(stem),
+        title: folderTitle || grandparentTitle || deriveShowTitleFromStem(stem),
         year: null,
         season: releaseSeason,
         episode: extractEpisodeFromSeasonFolderFile(stem, releaseSeason),
