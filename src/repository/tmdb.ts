@@ -31,8 +31,8 @@ export class TMDbClient {
   private session: AxiosInstance;
   private movieSearchCache: Map<string, Record<string, any>[]>;
   private tvShowSearchCache: Map<string, Record<string, any>[]>;
-  private lastRequestTime: number = 0;
-  private readonly MIN_REQUEST_INTERVAL: number = 250; // Minimum 250ms between requests to respect rate limits
+  private rateLimitChain: Promise<void> = Promise.resolve();
+  private readonly MIN_REQUEST_INTERVAL: number = 100;
   private readonly MAX_RETRIES: number = 3;
   private readonly RETRY_DELAY: number = 1000; // 1 second between retries
 
@@ -56,14 +56,12 @@ export class TMDbClient {
     this.tvShowSearchCache = new Map();
   }
 
-  private async enforceRateLimit(): Promise<void> {
-    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest),
-      );
-    }
-    this.lastRequestTime = Date.now();
+  private enforceRateLimit(): Promise<void> {
+    const next = this.rateLimitChain.then(
+      () => new Promise<void>((resolve) => setTimeout(resolve, this.MIN_REQUEST_INTERVAL)),
+    );
+    this.rateLimitChain = next;
+    return next;
   }
 
   private isRetryableError(error: any): boolean {

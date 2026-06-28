@@ -12,6 +12,7 @@
 import path from 'path';
 import fs from 'fs';
 import { Command } from 'commander';
+import pLimit from 'p-limit';
 import {
   CONTENT_TYPE_MOVIES,
   DEFAULT_LOG_LEVEL,
@@ -121,14 +122,19 @@ class TvRenamer {
     let failed = 0;
 
     const mediaFiles = Array.from(scanMediaFiles(sourceRoot, this.recursive));
+    const limit = pLimit(5);
 
-    for (const filepath of mediaFiles) {
-      if (!this.running) {
-        break;
-      }
+    const results = await Promise.all(
+      mediaFiles.map((filepath) =>
+        limit(async (): Promise<FileResult> => {
+          if (!this.running) return 'skipped';
+          totalFilesProcessed++;
+          return this.processFile(filepath);
+        }),
+      ),
+    );
 
-      totalFilesProcessed++;
-      const result = await this.processFile(filepath);
+    for (const result of results) {
       if (result === 'organized') {
         organized++;
       } else if (result === 'skipped') {
