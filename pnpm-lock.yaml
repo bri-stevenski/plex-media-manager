@@ -22,8 +22,8 @@ importers:
         specifier: ^17.3.1
         version: 17.3.1
       harness-engineering:
-        specifier: ^2.0.0
-        version: 2.0.0
+        specifier: ^3.0.0
+        version: 3.0.0
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
@@ -2350,8 +2350,8 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  harness-engineering@2.0.0:
-    resolution: {integrity: sha512-unMLIBqYp9Ly7tDGt5FEMiEjWlYXHvTwf/ypxEP6o/wc25WX7lzBQw9cegE4O/YdIjuDr1hLSNpZiWNPFfC9dA==}
+  harness-engineering@3.0.0:
+    resolution: {integrity: sha512-qIHuNBh9s4An/YyefnMFj6X5s4WuCyqqGRQM33ZaHOaVr09EAp/MibQhhru0NznH15kigBmkmGDUJN3NAU2UpA==}
     engines: {node: '>=16.0.0'}
     hasBin: true
 
@@ -6947,7 +6947,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  harness-engineering@2.0.0: {}
+  harness-engineering@3.0.0: {}
 
   has-bigints@1.1.0: {}
 
