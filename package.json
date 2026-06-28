@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "@harness-engineering/cli": "^2.6.1",
-    "@harness-engineering/core": "^0.24.0",
+    "@harness-engineering/core": "^0.32.0",
     "@harness-engineering/eslint-plugin": "^0.3.0",
     "@types/luxon": "^3.7.1",
     "@types/node": "^25.3.0",
